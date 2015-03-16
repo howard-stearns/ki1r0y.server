@@ -8,6 +8,8 @@ var bodyParser = require('body-parser');
 var routes = require('./routes/index');
 var users = require('./routes/users');
 
+process.title = 'kilroy'; // so we can kill the server easilly.
+
 var app = express();
 
 // view engine setup
