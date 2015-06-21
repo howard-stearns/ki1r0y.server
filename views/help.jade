@@ -1,0 +1,45 @@
+extends site
+
+block vars
+	- var xnametags = ['Help', 'junkShop', 'Beyond My Wall', 'Kilroy']
+	- var xdesc = "When things go wrong..."
+
+block content
+	h1 Help
+	h3 Any recent version of Chrome, Firefox or Safari should work on a computer.
+	p The current version does not work with Internet Explorer nor mobile/handheld devices. If you have turned scripting off in your browser, you will need to re-enable it.
+	h3 You have to be logged in to Facebook to go "in world" or to use the Like/Comment buttons.
+	p The first time you do so, 
+		a(href="http://facebook.com") Facebook
+		span  will ask you to approve the use the app. We don't use your Facebook contacts or require any special permissions.
+	h3 The big picture is a 3d game plugin.
+	p We use 
+		a(href="http://unity3d.com") Unity's
+		span  leading game plugin, which has been installed on over 200 million browsers and counting. Facebook itself 
+		a(href="https://developers.facebook.com/docs/unity/") encourages
+		span  its use. Installation is very quick and painless. Really.
+	h3 Everything you need to know is in the Tour.
+	p 
+		a(href="/places/GNJCZFTo9gP7z_uPeUnZqIVCYTpM") The Tour
+		span  takes about 10 minutes. The gist is as follows:
+	h3 Click in-scene to do stuff there, "esc" to get out.
+	p Click on an in-scene object to go to to it. Once in-scene, you can use the tab key to go to the next object (and shift-tab to tour in the other order). You can also go anywhere using the arrow keys.
+	p When you click on an object, the public social info (Likes and Comments) for that object are shown on the right. The object can also be edited in in the "properties" tab on the right. When you go away from an object using the arrow keys, the public/properties tabs are for the scene as a whole.
+	h3 No worries. The browser back button is "undo".
+	p You can undo anything in the scene using the browser back button. This applies to going places (with the tab key or clicking on objects or links), and to changes (with dragging and so forth).
+	p All the undoable actions are shown in the "history" tab below the scene. Clicking a timestamp jumps the scene directly back to that version. (The links and pictures work just like they do in the "related" tab described below.) 
+	h3 Just move things to where you want.
+	p Drag an object to wherever you want. It will glide over surfaces. Hold down the "alt" (or "option") key to drag a copy instead. You can also drag pictures into the scene (from your desktop or from the display below the scene).
+	p Drag a glowing corner to resize something, or alt-drag a corner to rotate the object.
+	p As mentioned above, click an object to go to it. Alt-click deletes it. Pictures have a special behavior when you are already at the picture and click it again: the picture gets "tiled" onto whatever surface it is on. This is how you can "wrap" an object with whatever "texture" you want.
+	p To edit an object you have clicked on, use the 'properties' tab to the right of the scene. If the "Freeze in scene?" property is checked, the object is immune from all these in-scene actions except for selecting the object by clicking.
+	h3 Ask for more in the box at top.
+	p When you type, you are text-chatting to everyone else in the same scene. Messages from the system also appear there. (Kilroy is our mascot.)
+	p When you type, you are also running a search, whose results are shown in the "related" tab below the scene:
+		ul
+			li Clicking a picture brings that object's information up in the social tab, without going to it.
+			li Dragging a picture into the scene makes a copy of it in the scene.
+			li Clicking a link takes you to that object, even if it is in a different scene.
+	p Otherwise, let us 
+		a(href="/site/contact") know.
+

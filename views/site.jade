@@ -1,0 +1,52 @@
+doctype xml
+block vars
+html(xmlns="http://www.w3.org/1999/xhtml", xmlns:fb="http://ogp.me/ns/fb#", prefix="og: http://ogp.me/ns#", article="http://ogp.me/ns/article#")
+	head
+		title=xnametags[0] + " | ki1r0y"
+		// Various media are owned by their respective authors.
+		meta(name="copyright", content="Ki1r0y (c) 2013-2015 Howard Stearns")
+		meta(id="ogTitle", property="og:title", content=xnametags[0])
+		meta(property="og:image", content=thumbnailUrl)
+		meta(property="og:url", content=canonicalUrl)
+		link(rel="canonical", href=canonicalUrl)
+		meta(property="og:site_name", content="ki1r0y")
+		meta(property="fb:app_id", content=fbAppId)
+		meta(property="og:type", content="article")
+		meta(property="og:description", content=xdesc)
+		meta(property="article:author", content=authorUrl)
+		meta(property="article:section", content=ogSection)
+		for tag in xnametags
+			meta(property="article:tag", content=tag)
+		meta(property="article:published_time", content=new Date(parseInt(created)).toISOString())
+		meta(property="article:modified_time", content=new Date(parseInt(created)).toISOString())
+		// Is this absolutely required by og? I'd like to kill it.
+		meta(property="article:expiration_time", content=new Date(parseInt(expires)).toISOString())
+		link(rel='stylesheet', href='/browser/stylesheets/style2d.css')
+		script.
+			var FBAPPID = "#{fbAppId}";
+			function onMe(r) {
+			dimension('userId', r.id); // FIXME remove after beta. (Track only aggregates.)
+			dimension('fbGender', r.gender);
+			logEvent('admin', 'user', r.username);
+			timing('admin', 'user');
+			}
+			function doLogin(r) { if (!FB || (r.status !== 'connected')) { return; } FB.api('/me', onMe); }
+		script(src="/browser/javascripts/third-party.js")
+	body
+		#fb-root
+		SiteSocial
+			fb:like(send="false", share="true", show_faces="false", href=canonicalUrl, ref="like__site")
+			br
+			fb:comments(href=canonicalUrl, ref="comment__site")
+		div
+			span.breadCrumbs
+				a#sceneUserNametag(href="/") junkShop site
+				a#sceneNametag(href="#{canonicalUrl}") #{xnametags[0]}
+			block content
+		Footer 
+			for link in footers
+				a(href="#{link.url}") #{link.title}
+		script.
+			page();
+
+

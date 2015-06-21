@@ -1,0 +1,36 @@
+extends site
+
+block vars
+	- var xnametags = ["My Scenes", 'home', 'junkShop', 'Beyond My Wall', 'kilroy']
+	- var xdesc = "Every user has a page that lists their scenes, and places you in the one last visited."
+
+block content
+	h1 My Scenes
+	h3 They're All Your Scenes
+	p You can see the public title, description, Likes and Comments for anything on junkShop.
+	p You can go into any of your friends scenes. If you make any changes within the scene, it becomes a copy owned by you!
+	p After you log in, you will be placed in the most recent such scene that you were in, and the "related" tab below the scene will list all of the scenes owned by you.
+	p
+		fb:login-button(id="login", show-faces="true", size="xlarge")
+		noscript JavaScript must be enabled in order for you to use 
+			a(href="/") Beyond My Wall
+			span However, it seems JavaScript is either disabled or not supported by your browser. You must enable JavaScript by changing your browser options, then try again.
+	p
+		span(id="three", style="display:none") Retrieving in 3 
+		span(id="two", style="display:none") 2 
+		span(id="one", style="display:none") 1
+		span(id="zero", style="display:none") ...
+		
+	script.
+		function show(id) { document.getElementById(id).style.display = 'inline'; }
+		function doLogin(r) { 
+		if (r.status === 'connected') {
+		show("three"); show("zero");
+		setTimeout(function () { show("two"); }, 1000);
+		setTimeout(function () { show("one"); }, 2000);
+		setTimeout(function () { location = location.origin + '/people/' + r.authResponse.userID; }, 3000);
+		} else {
+		console.log('doLogin', r);
+		}}
+
+

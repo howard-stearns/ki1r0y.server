@@ -1,0 +1,39 @@
+extends site
+
+block vars
+	- var xnametags = ['Privacy Policy', 'junkShop', 'Beyond My Wall', 'kilroy']
+	- var xdesc = "The intention is that: 1) Summary text and thumbnails are public, 2) Facebook stuff is controlled by Facebook, and 3) We consider what you share with your friends in your own scenes to be like what you share with them in your own home."
+
+block content
+	h1 Privacy Policy and Security
+	p Everything is just 
+		a(href="/site/about") being developed
+		span  and the following has not been reviewed by an attorney. However, our broad intentions are:
+	h3 Summary text and thumbnails are public.
+	p The nametags, descriptions, author name, and thumbnail pictures of Kilroy objects can be viewed by search engines and by anyone else, without a Facebook login.
+	h3 Facebook stuff is controlled by Facebook.
+	p Summary text and thumbnails are used in 
+		a(href="http://facebook.com", target="_blank") Facebook
+		span  Likes and Comments. Facebook accounts, Likes and Comments are controlled by Facebook and governed by their 
+		a(href="https://www.facebook.com/about/privacy/", target="_blank") privacy policy
+		span , which changes from time to time. Assume that such information is pretty public.
+	h3 We consider what you share with your friends in your own scenes to be like what you share with them in your own home.
+	p All the stuff in your scene (except the summary) is yours, for the private use of yourself and your Facebook friends. 
+	p We intend that only your friends can visit your pages, but right now it's wide open to everyone. We intend to take reasonable precautions to protect that data at rest on our servers and on your computer (through encryption) and in transit on the Internet (through HTTPS, like your bank uses). But we don't do that yet, either.
+	p We do not share this content, nor your use of it, with anyone, but:
+		ol
+			li Like most Web sites, we keep standard access logs in the 
+				a(href="http://httpd.apache.org/docs/1.3/logs.html#combined", target="_blank") Apache combined log format.
+			li We also keep anonymized, aggregated usage data to see which things are working well and which are not. We do not share that information with others, but we may use various third parties to collect that data. Currently, we use 
+				a(href="http://www.google.com/analytics/", target="_blank") Google Analytics.
+			li The 3d plugin comes from 
+				a(href="http://unity3d.com", target="_blank") Unity
+				span , which collects aggregate data as shown 
+				a(href="http://stats.unity3d.com/web/", target="_blank") here
+				span  and enumerated 
+				a(href="http://unity3d.com/company/legal/webplayer-eula", target="_blank") here.
+	h3 There's nothing on our servers to steal.
+	p There are no junkShop accounts, and we don't keep your Facebook account information.
+	p We intend that the media content of your scenes will be stored encrypted. (It isn't yet.) Our server does not need to decrypt it, and so there is no key or software on our server that can be used to unlock your content.
+	p However, you and your friends still do need to protect your Facebook account outside of junkShop. If someone obtains access to your (or a friend's) Facebook account, they could log into junkShop (e.g., as you) and see the content of your scenes.
+

@@ -1,0 +1,39 @@
+extends site
+
+block vars
+	- var xnametags = ["What's Hot?", 'junkShop', 'Beyond My Wall', 'kilroy']
+	- var xdesc = "There is a playpen and a scene for noting development ideas."
+
+block content
+	h1 What's Hot?
+	p Later on, this will automatically list the the scenes with the most social actvity. For now, though, it is hardcoded.
+	ol
+		li Visit any of the scenes below. (If you don't already have the Unity plugin, you'll be prompted to install it. It's painless.)
+		li Log in to Facebook using the login button on that page.
+	p If you have problems see the 
+		a(href="/site/help") Help page
+		span  (for which theres is a link at the bottom of each page).
+	h3 Tour of junkShop
+	p A go-at-your-own-pace 
+		a(href="/things/GhEjExj8ORumWsADpWt5orN9M7aA?fb_ref=public__GaYYu9u1K3k9TcBr1UXCigQ38po0") tour
+		span , in which you can discuss features in comments, and Like your favorites.
+	h3 Robin's Art
+	p A 
+		a(href="/places/GMphcaOWmq-40FRn3ywFK3woKViE") simple gallery
+		span  and a 
+		a(href="/places/GNCZbSqDFGXgDRiJUIRVRXIU0Ah8") fancier one
+		span  in the midst of development.
+	h3 Playpen
+	p The 
+		a(href="/places/GbYwjLag5OwT27Apjncn6OO5hV-k") Playpen
+		span  is for you to explore and build however you like.
+	h3 Dreams
+	p We have a dream-board / idea-board / mood-board in the form of a Kilroy 
+		a(href="/places/GcRvdLvmIm86NYWCIk2kzdy9OjPE") scene
+		span . Feel free to make your own.
+	h3 People
+	p Click a picture to see the scenes of your friend (visiting their most recent).
+	for userId in peopleData
+		a(href='/people/' + userId)
+			img(src='http://graph.facebook.com/' + userId + '/picture')
+
