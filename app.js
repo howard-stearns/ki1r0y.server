@@ -80,15 +80,6 @@ app.get('/channel.html', function (req, res) {
                 Expires: new Date(Date.now() + app.locals.oneYearMs).toUTCString()});
     res.send('<script src="//connect.facebook.net/en_US/all.js"></script>');
 });
-app.get('/crossdomain.xml', function (req, res) {
-    _.noop(req);
-    res.send([
-        '<?xml version="1.0"?>',
-        '<cross-domain-policy>',
-        '<allow-access-from domain="*"/>',
-        '</cross-domain-policy>'
-    ].join('\n'));
-});
 
 // Plural names are toplevel user requests.
 app.get('/people/:userIdtag', routes.user);
