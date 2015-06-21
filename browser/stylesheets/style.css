@@ -1,0 +1,363 @@
+/*body {
+  padding: 50px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+}*/
+
+/* Default Anchor Style */
+a
+{
+    color: #3b5998;
+    outline-style: none;
+    text-decoration: none;
+    font-weight: bold;
+}
+a:hover
+{
+    text-decoration: underline;
+}
+.kilroyLink.disable
+{
+	color: black;
+	text-decoration: none;
+}
+.light
+{
+	color: #999999;
+}
+.medium
+{
+	color: #666666;
+}
+/* A real FB canvas is only 760, but that's too narrow.
+   Given that like box won't be less than 285 (see scene.jade)
+   and the player is 600, our minimum width is 885. */
+.canvas
+{
+	margin-left: auto;
+	margin-right: auto;
+}
+.narrowprofile
+{
+    width: 200px;
+	max-height: 400px;
+	padding: 8px;
+}
+table.sortable thead {
+    background-color:#d8dfea;
+    color:#666666;
+    font-weight: bold;
+    cursor: default;
+}
+.metadata
+{
+	/*float: left;*/
+	/* width: 225px; */
+}
+.properties
+{
+	display: none;
+	/* width: 225px; */
+}
+.imMessage
+{
+	margin: 0px;
+}
+.imInput
+{
+	border: 1px solid #bdc7d8;
+    margin-right: 15px;
+	width: 650px;
+}
+.logout {
+	float: right;
+}
+.proptag
+{
+	width: 70px;
+}
+.propdesc
+{
+	width: 260px;
+}
+.proplabel
+{
+    font-size: 11px;
+	font-weight: bold;
+	color: #3b5998;
+}
+.proplabel.small
+{
+    font-weight: normal;
+}
+.propnumber
+{
+	width: 52px;
+}
+
+/* Facebook Box Styles */
+.greybox
+{
+    background-color: #f7f7f7;
+    border: 1px solid #cccccc;
+    color: #333333;
+/*    padding: 10px;*/
+    font-size: 13px;
+}
+.bottomfill
+{
+	height: 750px;
+}
+.fillheight
+{
+	height: 100%;
+}
+.bluebox
+{
+    background-color: #eceff6;
+    border: 1px solid #d4dae8;
+    color: #333333;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: bold;
+}
+.infobox
+{
+    background-color: #fff9d7;
+    border: 1px solid #e2c822;
+    color: #333333;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: bold;
+}
+.errorbox
+{
+    background-color: #ffebe8;
+    border: 1px solid #dd3c10;
+    color: #333333;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: bold;
+}
+/* Content Divider on White Background */
+.contentdivider
+{
+    margin-top: 15px;
+    margin-bottom: 15px;
+    width: 520px;
+    height: 1px;
+    background-color: #d8dfea;
+}
+/* Facebook Tab Style */
+.tabs
+{
+	padding: 8px;
+}
+.htab
+{
+	display: inline;
+    padding: 8px;
+    background-color: #d8dfea;
+    color: #3b5998;
+    font-weight: bold;
+    /*float: left;*/
+    margin-right: 4px;
+    text-decoration: none;
+	/* width: 92px;*/
+	/* Not facebook style, but I'm sick of squares. */
+	-moz-border-radius-topleft: 4px;
+	border-top-left-radius: 4px;
+	-moz-border-radius-topright: 4px;
+	border-top-right-radius: 4px;
+}
+.htab:hover
+{
+    background-color: #3b5998;
+    color: #ffffff;
+    cursor: hand;
+}
+/* Surely there must be a way to be DRY in css...*/
+.htab.selected
+{
+	display: inline;
+    padding: 8px;
+	background-color: #899cc1;
+    color: #3b5998;
+    font-weight: bold;
+    /*float: left;*/
+    margin-right: 4px;
+    text-decoration: none;
+	/*width: 92px;*/
+	/* Not facebook style, but I'm sick of squares. */
+	-moz-border-radius-topleft: 4px;
+	border-top-left-radius: 4px;
+	-moz-border-radius-topright: 4px;
+	border-top-right-radius: 4px;
+}
+.htab.selected:hover
+{
+    background-color: #3b5998;
+    color: #ffffff;
+    cursor: hand;
+}
+
+
+/* FIXME all this should be refactored with the above */
+.vtab
+{
+	display: inline;
+    padding: 8px;
+    background-color: #d8dfea;
+    color: #3b5998;
+    font-weight: bold;
+    /*float: left;*/
+    margin-right: 4px;
+    text-decoration: none;
+	/* width: 92px;*/
+	/* Not facebook style, but I'm sick of squares. */
+	-moz-border-radius-topleft: 4px;
+	border-top-left-radius: 4px;
+	-moz-border-radius-bottomleft: 4px;
+	border-bottom-left-radius: 4px;
+}
+.vtab:hover
+{
+    background-color: #3b5998;
+    color: #ffffff;
+    cursor: hand;
+}
+/* Surely there must be a way to be DRY in css...*/
+.vtab.selected
+{
+	display: inline;
+    padding: 8px;
+	background-color: #899cc1;
+    color: #3b5998;
+    font-weight: bold;
+    /*float: left;*/
+    margin-right: 4px;
+    text-decoration: none;
+	/*width: 92px;*/
+	/* Not facebook style, but I'm sick of squares. */
+	-moz-border-radius-topleft: 4px;
+	border-top-left-radius: 4px;
+	-moz-border-radius-bottomleft: 4px;
+	border-bottom-left-radius: 4px;
+}
+.vtab.selected:hover
+{
+    background-color: #3b5998;
+    color: #ffffff;
+    cursor: hand;
+}
+
+.description { padding: 0.3em; }
+
+Body, StreamingText, Footer  { background-color: #f7f7f7; }
+tabSheet > div { background: #D8DFEA; }
+StreamingText, Footer { padding: 4px; }
+Body {
+    font-family: 'lucida grande',tahoma,verdana,arial,sans-serif; /* Facebook standard */
+	font-size: 13px;                                              /* ditto */
+	margin: 0;
+	margin-left: 10px;
+}
+StreamingText, Plugin, Scene, Object, TabSet, Footer { display: block; }
+StreamingText, Footer { position: fixed; z-index: 10; }
+Plugin                { position: fixed; z-index: 20; }
+Scene, Object         { position: absolute; }
+socialSpinner { display: block; position: relative; }
+fbSocPlug { position: absolute; }
+#spinnerOverlay { position: absolute; background-color: #777777; left: 0; width: 100%; top: 0; height: 100%; opacity: 0.4; display: none; }
+#relatedBox { padding-bottom: 30px; } /* else when auto vertical scroller doesn't leave enough room to push above footer */
+
+Scene, plugin               { width: 600px; }
+Object                      { left: 610px;       /* Including body margin-left */
+							  min-width: 285px;  /* don't need both of these */
+							  right: 0;          /* but it's convenient for experiments */
+							}
+StreamingText, Footer       { width: 100%; }
+.sortable {                   width: 100%; word-break: break-word; } /* so that long names don't overflow surrounding div */
+
+.imMessages { overflow-x: auto; width: 99%; height: 90%; }
+StreamingText               {               height: 114px; }
+Scene, Object                             { bottom: 28px; }
+Scene                                        { top: 128px; }
+Object           /* don't clip tabs on top*/ { top: 132px;  }
+plugin                                    { height: 450px; }
+Footer                      {               height: 20px; bottom: 0; }
+tabSet#info                                  { top: 0; }
+tabSet#listings                              { top: 460px; }
+
+td, Footer { text-align: center; }
+Footer a:not(:first-child):before { content: " -- "}
+
+tabSet {
+	position: absolute;     /* Establish a containing block */
+	left: 0; right: 0; /*bottom: 0;*/
+	min-height: 7em;
+	line-height: 1;		    /* Easier to calculate with */
+}
+tabSet > tabSheet { display: inline	}	/* We want the buttons all on one line */
+tabSet > tabSheet > a { /* The little tabby thingie is a clickable 'a' element. */
+	color: #3b5998; font-weight: bold; text-decoration: none;
+	padding: 0.2em;		
+	border: 0.1em outset #8B9DC3;	/* The label gets a button look, but not the div below as that causes a line */
+	border-radius: 0.5em 0.5em 0 0;
+}	  
+tabSet > tabSheet > div { /* The rest of the tabSheet is a div . */
+	position: absolute;
+	top: 1.2em;	/* The top needs some calculation... */
+	left: 0; right: 0;	/* Other sides flush with containing block */
+	/*bottom: 0; */
+	padding: 0.3em;		    /* Looks better */
+}
+tabSet > tabSheet[selected=false] > div { display: none;  }
+tabSheet[selected] { } /* works around Safari bug with descendant attribute selectors */
+tabSheet[selected=true] > a { background: #D8DFEA; border-bottom: 0.1em solid #D8DFEA; } /* Facebook selected tabs */
+tabSheet[selected=false] > a { background: #8B9DC3; border-bottom: none; } /* Facebook doesn't have a darker unselected tab color. This one is between selected and button background. */
+tabSheet.disable[selected=false] > a { background: #E7EBF2; color: #D8DFEA; text-decoration: none;}
+
+.breadCrumbs { float: right; }
+.breadCrumbs a#sceneNametag:before { content: " > "}
+
+.reorderable { cursor: move; }
+.reorderable.overAbove { border-top: 2px dashed #000; }
+.reorderable.overBelow { border-bottom: 2px dashed #000; }
+
+.spinner {
+   top: 50px;
+   height:60px;
+   width:60px;
+   margin:0px auto;
+   position:relative;
+   -webkit-animation: rotation .6s infinite linear;
+   -moz-animation: rotation .6s infinite linear;
+   -o-animation: rotation .6s infinite linear;
+   animation: rotation .6s infinite linear;
+   border-left:6px solid   rgba(152,58,89,.15);
+   border-right:6px solid  rgba(152,58,89,.15);
+   border-bottom:6px solid rgba(152,58,89,.15);
+   border-top:6px solid    rgba(152,58,89,.8);
+   border-radius:100%;
+}
+
+@-webkit-keyframes rotation {
+   from {-webkit-transform: rotate(0deg);}
+   to {-webkit-transform: rotate(359deg);}
+}
+@-moz-keyframes rotation {
+   from {-moz-transform: rotate(0deg);}
+   to {-moz-transform: rotate(359deg);}
+}
+@-o-keyframes rotation {
+   from {-o-transform: rotate(0deg);}
+   to {-o-transform: rotate(359deg);}
+}
+@keyframes rotation {
+   from {transform: rotate(0deg);}
+   to {transform: rotate(359deg);}
+}	  

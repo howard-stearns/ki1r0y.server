@@ -1,0 +1,201 @@
+doctype xml
+html(xmlns="http://www.w3.org/1999/xhtml", xmlns:fb="http://ogp.me/ns/fb#", prefix="og: http://ogp.me/ns#", article="http://ogp.me/ns/article#")
+	head
+		title=nametags[0]
+		// Various media are owned by their respective authors.
+		meta(name="copyright", content="Kilroy (c) 2013-2014 Howard Stearns/Beyond My Wall")
+		meta(id="ogTitle", property="og:title", content=nametags[0])
+		meta(property="og:image", content=thumbnailUrl)
+		meta(property="og:url", content=canonicalUrl)
+		link(rel="canonical", href=canonicalUrl)
+		meta(property="og:site_name", content="junkShop")
+		meta(property="fb:app_id", content=fbAppId)
+		if ogSection
+			meta(property="og:type", content="article")
+			meta(property="og:description", content=descStripped)
+			meta(property="article:author", content=authorUrl)
+			meta(property="article:section", content=ogSection)
+			for tag in nametags
+				meta(property="article:tag", content=tag)
+			meta(property="article:published_time", content=new Date(parseInt(created)).toISOString())
+			meta(property="article:modified_time", content=new Date(parseInt(timestamp)).toISOString())
+			// Is this absolutely required by og? I'd like to kill it.
+			meta(property="article:expiration_time", content=new Date(parseInt(expires)).toISOString())
+		else
+			meta(property="og:type", content="profile")
+			meta(property="profile:first_name", content=firstname)
+			meta(property="profile:last_name", content=lastname)
+			meta(property="profile:username", content=username)
+			// Is this absolutely required by og? I'd like to kill it.
+			meta(property="profile:gender", content=gender)
+		link(rel='stylesheet', href='/browser/stylesheets/style.css')
+		// CSS3 Facebook Buttons by Nicolas Gallagher, "Unlicense" License (public domain)
+		link(rel='stylesheet', href='/browser/stylesheets/fb-buttons.css')
+		style(media="screen", type="text/css").
+			plugin { background-image: url('#{thumbnailUrl}'); }
+		// Unity browser plugin is Copyright (c) 2013 Unity Technologies
+		script(src="http://webplayer.unity3d.com/download_webplayer-3.x/3.0/uo/UnityObject.js")
+		// SortTable is Copyright (c) 1997, 2007 by Stuart Langridge, MIT License. Must be before jasmine, if present.
+		script(src="/browser/javascripts/sorttable.js")
+		// Socket.IO is Copyright (c) 2011 Guillermo Rauch/LearnBoost, MIT License
+		script(src="/socket.io/socket.io.js")
+		if testing
+			include tests.jade
+		// Kilory is Copyright (c) 2013-2014 Howard Stearns/Beyond My Wall. All rights reserved until we get a clue.
+		script.
+			var FBAPPID = "#{fbAppId}";
+			var SCENE = {idtag: "#{sceneIdtag}", timestamp: "#{requestedTimestamp}"};
+			var THING = {idtag: "#{objectIdtag}"};
+			if (!location.origin) { location.origin = location.protocol + '//' + location.host; } //- defined by Chrome, and convenient
+			unityObject.embedUnity("unityPlayer", "/kilroy.unity3d", 600, 450);	
+		script(src="/browser/javascripts/resources.js")
+		script(src="/browser/javascripts/history.js")
+		script(src="/browser/javascripts/interface.js")
+		script(src="/browser/javascripts/chat-frontend.js")
+		script(src="/browser/javascripts/third-party.js")
+		script(src="/browser/javascripts/login.js")
+		// Facebook trademarks and code are the property of Facebook.
+	body
+		#fb-root
+		noscript !{desc}
+		Scene
+			plugin
+				#dropzone(class="content", ondragenter="handleDragOver(event)", ondragover="handleDragOver(event)", ondrop="handleDropSelect(event)", title="You must be logged in to Facebook, above.")
+					#unityPlayer
+						.missing
+							a(href="http://unity3d.com/webplayer/", title="Unity Web Player. Install now.")
+							img(alt="Unity Web Player. Install now.", src="http://webplayer.unity3d.com/installation/getunity.png", width="193", height="63")
+			tabSet(id="listings")
+				tabSheet(id="related", selected="true")
+					a(id="relatedTab", onclick="tabSelect('related')", title="Related content from across 'junkShop'.") related
+					#relatedBox
+						table(id="relatedBox", class="sortable")
+							thead
+								tr
+									th(class="sorttable_nosort")
+									th object
+									th scene
+									th last update
+									th author
+							tbody(id="relatedBody")
+				tabSheet(id="history", selected="false")
+					a(id="historyTab", onclick="tabSelect('history')", title="Your session history.") history
+					#historyBox
+						table(id="historyBox", class="sortable")
+							thead
+								tr
+									th(class="sorttable_nosort")
+									th object
+									th scene
+									th time
+									th action
+							tbody(id="historyBody")
+				span.breadCrumbs
+					a#sceneUserNametag(href=sceneUserUrl, title="The Facebook user that created this scene.") #{sceneUserNametag}
+					a#sceneNametag(href=sceneUrl, title="The current scene.") #{sceneNametag}
+					a#objectNametag(href=objectUrl, title="The object you are in front of.") #{objectNametag ? ' > ' + objectNametag : ''}
+		Object
+			tabSet(id="info")
+				tabSheet(id="metadata", selected="true")
+					a(id="metadataTab", onclick="tabSelect('metadata')", title="Review or add Facebook likes and comments about this object. Choose (and go to) a new object with a mouse click in-scene. (Moving away with arrow keys selects the scene as a whole.)") public
+					#metadataBox
+						a(id="publicLabel", class="kilroyLink", onclick="softLink()", title="This is where you are now.") #{nametags[0]}
+						input(id="tmpLabel", title="Edit name for new object as it should appear in titles.", type="text", style="display:none", class="propdesc")
+						.description(id="publicDesc") !{desc}
+						textarea(id="tmpDesc", title="Edit description for new object as it should appear in social media.", rows="2", style="display:none", class="propdesc")
+						a(class="detailsbutton", id="detailsButton", onclick="toggleDetails()", title="Show details.", style="display:none")
+						div.details(id="detailsDisplay", style="font-size:0px")
+						socialSpinner
+							socPluginsFb
+								//- No need for a separate send button when we include it in like.
+								//- Send may be confusing to users, though, so we might not want it all.
+								//- Like can be as much as 285px with send. If we don't specify, it will be even larger. See Object min-width in style.css.
+								//- Specify href now so user sees comments on requested object while scene is loading.
+								br
+								//a(class="uibutton special icon2 email", id="email", title="Send an email with a link to this object.") Mail
+								//span 
+								fb:like(href=canonicalUrl, show_faces="false", share="true", send="false", ref="like__#{sceneIdtag}")
+								//.fb-like(data-href=canonicalUrl, data-layout="standard", data-action="like", data-show_faces="false", data-share="true", data-ref="like__#{sceneIdtag}")
+								br
+								fb:comments(href=canonicalUrl, ref="comment__#{sceneIdtag}", notify="true")
+								//.fb-comments(data-href=canonicalUrl, data-ref="comment__#{sceneIdtag}", data-notify="true")
+							#spinnerOverlay
+								.spinner
+				tabSheet(id="properties", selected="false")
+					a(id="propertiesTab", onclick="tabSelect('properties')", title="Edit the in-scene properties of this object. Choose a new object with a mouse click in-scene. (Moving away with arrow keys selects the scene as a whole.)") properties
+					#propertiesBox
+						.tags
+							label(class="proplabel", title="The name of this object, as it appears in titles.") Name
+								input(id="tag0", class="proptag", type="text", onchange="setProp('settag0', event)", oninput="onModified(event)")
+							br
+							textarea(id="desc", rows="5", class="propdesc", title="Summary description of this object, as it appears in social media.", placeholder="summary description", onchange="setProp('setDesc', event)", oninput="onModified(event)")
+							br
+							input(id="detailsLabel", class="proptag", type="text", onchange="setProp('setDetailsLabel', event, null, (this.value==='message')?'':this.value)", oninput="onModified(event)", title="A small link appearing on the public tab that reveals the following details, and only when there are details to be shown.", value="message")
+							textarea(id="details", rows="5", class="propdesc", title="Additional details for this object, which only show up in the other tab when requested. These details are not shown to Facebook or search engines. You can include HTML markup or URLs.", placeholder="additional details (e.g., price and contact email)", onchange="setProp('setDetails', event)", oninput="onModified(event)")
+						.uibutton-group
+							a(id="delete", class="uibutton special icon2 delete", onclick="deleteObject()", title="Delete this object from the scene. (You can undo using the browser back button.)") Delete
+							a(id="export", class="uibutton special icon2 export", title="Download to your browser's download directory, all textures, meshs, and other media that this object may have.") Export
+							a(id="import", class="uibutton special icon2 import", onclick="document.getElementById('files').click()", title="Open a file chooser to add or replace images in this object. In some browsers, you can also drag-and-drop from your desktop or other applications.") Import
+							// Invisible file input for import button.
+							input(id="files", style="display:none", type="file", onchange="handleFileSelect()", multiple, accept="image/*")
+						label(class="proplabel", title="Does this object appear in the list of tab stops for the scene, such that one can navigate to this object by pressing the tab key.") Tab stop?
+							input(id="tabstop", type="checkbox", onchange="setTabstop(event)")
+						label(class="proplabel", title="Lock against in-scene changes (e.g., dragging or material tiling.") Freeze in scene?
+							input(id="freeze", type="checkbox", onchange="setFreeze(this)")
+						.proplabel(id="tabOrderDisplay", title="Drag the numbers to change the order used by the tab key to navigate through the scene, or just click the name to go there.", display="none") Tab stops
+							ol(id="tabOrder")
+						.geometry(id="geometry")
+							.gprop(title="The position of the object within the scene.")
+								.proplabel Position
+								label(class="proplabel small") x
+									input(id="pos.x", class="propnumber", type="number", step="0.1", onchange="setProp('setPositionX', event)", oninput="onModified(event)")
+								label(class="proplabel small") y
+									input(id="pos.y", class="propnumber", type="number", step="0.1", onchange="setProp('setPositionY', event)", oninput="onModified(event)")
+								label(class="proplabel small") z
+									input(id="pos.z", class="propnumber", type="number", step="0.1", onchange="setProp('setPositionZ', event)", oninput="onModified(event)")
+							.gprop(title="The rotation of the object in degrees around the x, y, or z axis.")
+								.proplabel Rotation
+								label(class="proplabel small") x
+									input(id="rot.x", class="propnumber", type="number", min="-360", max="360", onchange="setProp('setRotationX', event)", oninput="onModified(event)")
+								label(class="proplabel small") y
+									input(id="rot.y", class="propnumber", type="number", min="-360", max="360", onchange="setProp('setRotationY', event)", oninput="onModified(event)")
+								label(class="proplabel small") z
+									input(id="rot.z", class="propnumber", type="number", min="-360", max="360", onchange="setProp('setRotationZ', event)", oninput="onModified(event)")
+							.gprop(title="The size multiplier of this object in each direction. (2.0 means twice as big as a one unit in the containing object.)")
+								.proplabel Size
+								label(class="proplabel small") x
+									input(id="size.x", class="propnumber", type="number", min="0", step="0.1", onchange="setProp('setSizeX', event)", oninput="onModified(event)")
+								label(class="proplabel small") y
+									input(id="size.y", class="propnumber", type="number", min="0", step="0.1", onchange="setProp('setSizeY', event)", oninput="onModified(event)")
+								label(class="proplabel small") z
+									input(id="size.z", class="propnumber", type="number", min="0", step="0.1", onchange="setProp('setSizeZ', event)", oninput="onModified(event)")
+								br
+								label(class="propLabel small") units
+									select(id="units", onchange="setUnits(this)", oninput="onModified(event)")
+										option meter
+										option foot
+										option inch
+										option centimeter
+										option millimeter
+		StreamingText(id="greybox", title="You must be logged in to Facebook.")
+			#content(class="imMessages")
+				fb:login-button(id="login", show-faces="true", size="medium")
+				//.fb-login-button(id="login", data-show-faces="true", data-size="medium")
+				noscript JavaScript must be enabled in order for you to use 
+					a(href="/") junkShop
+					span . However, it seems JavaScript is either disabled or not supported by your browser. You must enable JavaScript by changing your browser options, then try again.
+			#authedInput(style="display:none")
+				label(id="status", for="input", title="This is you.") Connecting...
+				input(id="input", class="imInput", type="text", disabled="disabled", title="Type here to search, or to chat with people in the scene.", placeholder="Search or chat.")
+				//- Facebook doesn't have a logout button. Make one in their style.
+				a(id="fbLogout", onclick="doLogout()", class="uibutton confirm", style="display:none", title="Sign off from both Facebook and BeyondMyWall.") Logout
+		Footer 
+			a(href="/site/myScenes.html") My Scenes
+			a(href="/site/hot.html") What's Hot
+			a(href="/site/help.html", target="kilroySite") Help
+			a(href="/site/about.html", target="kilroySite") About
+			a(href="/site/privacy.html", target="kilroySite") Privacy Policy
+			a(href="/site/contact.html", target="kilroySite") Contact
+		script.
+			var RELATED = !{JSON.stringify(related || [])};
+			setRelated(RELATED);

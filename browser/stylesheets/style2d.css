@@ -1,0 +1,14 @@
+Body {
+    font-family: 'lucida grande',tahoma,verdana,arial,sans-serif; /* Facebook standard */
+	font-size: 13px;                                              /* ditto */
+	margin: 10px;
+}
+Footer  { background-color: #f7f7f7; }
+Footer { position: fixed; z-index: 10; }
+Footer       { width: 100%; }
+Footer                      {               height: 20px; bottom: 0; }
+Footer { text-align: center; }
+Footer a:not(:first-child):before { content: " -- "}
+SiteSocial { display: block; float: right; }
+.breadCrumbs { float: right; padding: 10px; }
+.breadCrumbs a#sceneNametag:before { content: " > "}
