@@ -92,8 +92,8 @@ app.get('/q/hasWord/:text', routes.citations);
 app.get('/q/search/:text', routes.search);
 
 // These aren't needed for any of the above.
-app.use(bodyParser.json());    //app.use(bodyParser.urlencoded({ extended: false }));
-app.use(multer({dest: path.resolve(__dirname, '../uploads/'), putSingleFilesInArray: true}));
+app.use(bodyParser.json());
+app.use(multer({dest: path.resolve(__dirname, '../uploads/'), putSingleFilesInArray: true})); // Media file uploads
 app.use(cookieParser());
 
 app.use('/media', immutable('media'));
@@ -110,10 +110,18 @@ app.delete('/:collection/:id.:ext', routes.delete); // For testing
 app.post('/fbusr/:id.json', routes.updateUser);
 app.post('/pRefs/:id.json', routes.uploadRefs);
 // compatability with old ids
-app.post('/fbusr/:id', routes.updateUser);
-app.post('/place/:id', routes.uploadPlace);
-app.post('/thing/:id', routes.uploadObject);
-app.post('/thumb/:id.png', routes.uploadThumbnail);
+// Alas, Unity WWW class cannot do 'PUT'.
+var fakeJson = [
+    bodyParser.urlencoded({ extended: false }),
+    function treatBodyAsJson(req, res, next) {
+        _.noop(res);
+        req.body.data = JSON.parse(req.body.data);
+        next();
+    }];
+app.post('/place/:id', fakeJson, routes.uploadPlace);
+app.post('/thing/:id', fakeJson, routes.uploadObject);
+app.post('/refs/:id', fakeJson, routes.uploadRefs); // Old name for pRefs.
+app.post('/thumb/:id', routes.uploadThumbnail);
 app.post('/media/:id', routes.uploadMedia);
 
 // If we get this far, nothing has picked up the request. Give a 404 error to the error handler.
