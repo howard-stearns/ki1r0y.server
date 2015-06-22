@@ -150,7 +150,6 @@ router.scene = function (req, res, next) {
                     if (!thisScene) {
                         next(new Error('No related scene for url=' +  req.url + ' scene=' + obj.sceneIdtag + ' object=' + obj.objectIdtag + ' related=' + relatedScenes));
                     } else {
-                        console.log(req.params, obj, thisScene);
                         db.resolveUser(thisScene.userIdtag, function (err, sceneUser) {
                             if (err) { return next(err); }
                             obj.sceneUserUrl = base + '/people/' + thisScene.userIdtag;

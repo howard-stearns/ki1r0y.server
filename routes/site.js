@@ -11,7 +11,7 @@ exports.standard = function (req, res, next) {
         if (err) { return next(err); }
         res.render(req.params.id, {
             thumbnailUrl: '/browser/images/kilroy-20.png',
-            canonicalUrl: base + req.originalUrl, // why is req.url wrong?
+            canonicalUrl: base + req.originalUrl,
             authorUrl: '/about.html',
             ogSection: 'site',
             created: created.getTime().toString(),

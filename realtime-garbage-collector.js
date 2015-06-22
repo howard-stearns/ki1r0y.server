@@ -57,7 +57,7 @@ var querystring = require('querystring');
 */
 function collectImmutables(copyMutable, copyMedia, addRoots, progress, callback) {
     var unprocessedNames = [];
-    var tick = function () {
+    function tick() {
         if (!unprocessedNames.length) { unprocessedNames = addRoots(); }
         if (!unprocessedNames) {
             progress.totalTime = new Date().getTime() - progress.startTime;
@@ -78,7 +78,9 @@ function collectImmutables(copyMutable, copyMedia, addRoots, progress, callback)
             copyMedia(obj.materials || [], function (copyErr) {
                 if (copyErr) { return callback(copyErr, progress); }
                 async.eachSeries(obj.children || [], function (child, cb) {
-                    unprocessedNames.push(child.idvtag || child.idtag);
+                    var tag = child.idvtag || child.idtag;
+                    if (!tag) { return cb(new Error('FIXME Empty child tag in ' + name + ': ' + JSON.stringify(obj))); }
+                    unprocessedNames.push(tag);
                     // The presence of a version tag indicates that idtag is a mutable wrapper.
                     // We don't dig inside (caller must), but we do apply copier and recurse through immutable idvtag part.
                     if (child.idvtag) {
@@ -92,7 +94,7 @@ function collectImmutables(copyMutable, copyMedia, addRoots, progress, callback)
                 });
             });
         });
-    };
+    }
     next(tick); // Don't even start until there's nothing else to do.
 }
 
@@ -102,28 +104,28 @@ function collect(callback) {
     // collectImmutables will periodically ask for these and act on them (coming back for more if empty).
     var immutables = [];  // It won't stop until this is empty...
     var examined = false;  // ... and  we have finished examining everything.
-    var addRoots = function () {  // Callback collectImmutables uses to get the above.
+    function addRoots() {  // Callback collectImmutables uses to get the above.
         var these = immutables;
         immutables = [];
         return (these.length || !examined) ? these : null;
-    };
+    }
 
-    var doError = function (err) {
+    function doError(err) {
         if (err) { immutables = []; examined = true; console.log('FIXME', err); callback(err); }
         return err;
-    };
-    var copyMutable = function (idtag, cb) {
+    }
+    function copyMutable(idtag, cb) {
         db.mark(idtag, function (err, newlyMarked) {
             if (newlyMarked) { progress.places++; }
             cb(err);
         }, 'forceProcessingEvenIfUpdated');
-    };
-    var copyMaterials = function (materials, cb) {
+    }
+    function copyMaterials(materials, cb) {
         db.markMaterials(materials, function (err, nNewlyMarked) {
             progress.media += nNewlyMarked;
             cb(err);
         });
-    };
+    }
     var started = false;  // We don't collectImmutables until our first iteration.
     db.iterateUsers(function (user, userCb) {
         progress.people++;
@@ -148,7 +150,9 @@ function collect(callback) {
                     // within the list are not long and will be trimmed when the object is next
                     // saved.
                     var versions = scene.versions || {oldStyle: scene.idvtag};
-                    for (key in versions) { progress.versions++; immutables.push(versions[key]); }
+                    for (key in versions) { progress.versions++;
+                                            if (!versions[key]) { return  sceneCb(new Error("FIXME no version for " + key + " in scene " + sceneIdtag + ": " + JSON.stringify(scene))); }
+                                            immutables.push(versions[key]); }
                     if (!started) {
                         started = true;
                         collectImmutables(copyMutable, copyMaterials, addRoots, progress, callback);

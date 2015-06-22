@@ -191,6 +191,7 @@ var addCitations, markMaterials; //forward references
 // not an idvtag.) Hence the flag, which is only truthy for version things. Note that version things still need materials
 // added (because places don't include that data). Thus places + non-place things => do citations; any thing => do materials
 function update(idvtag, data, flag, callback) {
+    if (!data) { return callback(new Error("Update of " + idvtag + " with no data, flag=" + flag)); }
     var path = idFile(idvtag);
     writeLockFile(path, JSON.stringify(data), function (eWrite) { // locked against gc sweep of path
         if (eWrite) { return callback(eWrite); }
