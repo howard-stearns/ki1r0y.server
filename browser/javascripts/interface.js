@@ -3,7 +3,7 @@
 /* Copyright (c) 2013 Beyond My Wall. All rights reserved until we get a clue. */
 var FileReader, FB, getUnity, sayOnce, chatLogin, doLogin, advice, addHistory, kilroyURL, peopleURL, canonicalLocation, _;
 var updateLinksStyles, addTimestamp, addPendingHistory, errorMessage, page, logEvent, dimension, timing, removeChildren, makeReorderable, thumbnailURL;
-var unityObject, unityReady, post, finalHandler, noop, shorten;
+var unityObject, unityReady, post, finalHandler, _, shorten;
 
 // Answer the plugin, or null. The plugin machinery doesn't seem to make use of this,
 // but all the examples have it defined (e.g., as a separate function from sendUnity, below.
@@ -120,7 +120,7 @@ function pluginReady() {    // Sent by plugin when it starts operating (and is t
             }
         };
     } else {
-        restorePlayer = noop;
+        restorePlayer = _.noop;
     }
     document.onkeydown = function (e) { // make at least tab work without clicking scene
         if (_.contains(['EMBED', 'INPUT'], document.activeElement.nodeName)) { return true; } // allow normal processing
@@ -151,7 +151,7 @@ function updateBreadcrumb(id, url, nametag) { // answers element
     return link;
 }
 function updateUser(data, optionalCallback) { // Update user data. FIXME: send through secure plugin
-    post(location.origin + '/fbusr/' + USER.idtag, data, optionalCallback);
+    post(location.origin + '/fbusr/' + USER.idtag + '.json', data, optionalCallback);
 }
 function Units(name) {
     var factor = 1;

@@ -3,7 +3,7 @@
 /// Provides doLogin handler for FB login status change, and doLogout handler for fake FB logout button.
 /// Copyright (c) 2013 Beyond My Wall. All rights reserved until we get a clue.
 /// The Facebook API is copyright by Facebook.
-var FB, SCENE, enterIfReady, post, dimension, logEvent, timing; // defined elsewhere
+var FB, SCENE, enterIfReady, updateUser, dimension, logEvent, timing; // defined elsewhere
 
 // We want set with the right dimensions once we have them, so that all page views have the right dimensions.
 // So we don't send
@@ -44,7 +44,8 @@ function onMe(response) {      // Handler for FB.api user data.
     timing('admin', 'user');
     // Update user info. Probably never changes after the first time, but we still need it that first time 
     // (in order to serve people pages). And it _could_ change... And scene needs to be updated anyway.
-    post(location.origin + '/fbusr/' + response.id, {
+    // Note that onUserData => enterIfReady => records USER.idtag
+    updateUser({
         firstname: response.first_name,
         lastname: response.last_name,
         nametag: userResponseNametag(response),
