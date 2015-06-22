@@ -1,0 +1,48 @@
+doctype 5
+html(xmlns="http://www.w3.org/1999/xhtml", xmlns:fb="http://ogp.me/ns/fb#", prefix="og: http://ogp.me/ns#", website="http://ogp.me/ns/website#")
+  head
+    title= scene + " (" + settings.title + ")"
+    meta(property="og:title", content=objectTitle)
+    meta(property="og:description", content=objectDescription)
+    meta(property="og:type", content="website")
+    meta(property="og:image", content=objectThumbnail)
+    meta(property="og:url", content=objectUrl)
+    meta(property="og:site_name", content="Beyond My Wall")
+    meta(property="fb:app_id", content="143430309059024")
+    script(src="/socket.io/socket.io.js")
+    link(rel='stylesheet', href='/stylesheets/style.css')
+  body
+    block content
+      #fb-root
+      script(src="/javascripts/setup.js")
+      .greybox
+          #content(class="imMessages")
+             fb:login-button(id="login", show-faces="true", size="medium")
+          #inputBar(style="display:none")
+            span(id="status") Connecting...
+            input(id="input", class="imInput", type="text", disabled="disabled")
+            span(id="fbLogout", onclick="doLogout()", class="fb_button fb_button_small")
+              span(class="fb_button_text") Logout
+          script(src="/javascripts/chat-frontend.js")
+       table
+         tr
+           td
+             .plugin(onclick="select()")
+                p Here lies the #{settings.title} for object #{id} in scene #{scene}.
+                #234(onclick="select(this.id)", style="background-color: #eceff6; border: 1px solid #d4dae8; border-radius: 10px;") 234
+                #235(onclick="select(this.id)", style="background-color: #eceff6; border: 1px solid #d4dae8; border-radius: 10px;") 235
+                #236(onclick="select(this.id)", style="background-color: #eceff6; border: 1px solid #d4dae8; border-radius: 10px;") 236
+           td(valign="top", id="metadataBox")
+              //- FIXME: subscribe to events to update plugins on login.
+              //- No need for a separate send button when we include it in like.
+              //- Send may be confusing to users, though, so we might not want it all.
+              fb:like(send="false", show_faces="false", href=objectUrl)
+              //- FIXME: provide logout and shared-activity under a separate tab.
+              //- shared-activity shows your own deletable activity and general sharing level.
+              br
+              //- FIXME: show combined activity for hovered object, not just comments.
+              //- This is for activity across all of BMW. Q: does filter parameter help?
+              //- fb:activity(header="false")
+              //- The href is the path for the object, regardless of scene.
+              fb:comments(href=objectPath)
+              //- fb:shared-activity
