@@ -310,7 +310,7 @@ function updateUser(userIdtag, userData, callback) {
         writerFunction(null, JSON.stringify(data), data);
     }, callback);
 }
-// Calls iterator(userObject, cb) on each user's data. iterator must call cb(err) to continue.
+// Calls iterator(userObject, cb, userIdtag) on each user's data. iterator must call cb(err) to continue.
 // finalCallbac(err) is called on error or when all cb have been used.
 function iterateUsers(iterator, finalCallback) {
     var dir = path.resolve(root, 'mutable/people');
@@ -319,7 +319,7 @@ function iterateUsers(iterator, finalCallback) {
         function eachIdtag(userFile, cb) {
             readLockFile(path.resolve(dir, userFile), function (err, json) {
                 if (err) { return cb(err); }
-                iterator(JSON.parse(json), cb);
+                iterator(JSON.parse(json), cb, userFile);
             });
         }
         async.eachSeries(userFiles, eachIdtag, finalCallback);
