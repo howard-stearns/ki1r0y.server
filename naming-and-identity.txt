@@ -1,0 +1,133 @@
+                    NAMING and IDENTITY in Ki1r0y
+                    -----------------------------
+
+
+BACKGROUND:
+
+Ki1r0y has been a background "social reality" project for a few years. The original platform featured small, multi-user virtual worlds, in which each part of the scene graph was individually shareable, likeable, and commentable. Clicking on a Facebook Like or Comment brought the user into the world, positioned at the object (which might be 1D, 2D, or 3D media).  Later I started to apply the underlying concepts as a blogging platform (having nothing to do with virtual worlds).
+
+
+GOALS:
+
+A. Virtuous circle: explore -> like -> friends see "Like" out-of-band in Facebook -> explore
+B. Easy exploration even if you're just browsing: Very fast entry.
+C. Author attribution and sharing, consistent with Creative Commons philosophy.
+D. Forgiving of mistakes: infinite undo of your own work (even across sessions)
+E. Foster creativity: changing something in a friend's world automatically makes a github-like fork for you, pointing back to original.
+F. Foster realtime collaboration: two or more simultaneous participants in the same world can each change things, with the system keeping track of simplified attribution.
+G. Resiliency under law: take down one specific use of a media object without taking down other uses; or media from all scenes without effecting the rest of the content in those scenes; unable to provide list of users of a meda object.
+H. Flexible transport: HTTPS vs streams over udp; and server vs peer/Distributed-Hash-Table
+
+There are other goals that are made possible by the naming and identity design, but which I think can be separated out. I list them here because it may help in understanding some design choices:
+
+I. Seductive browsing: The UI always dynamically displays related content from the same scene or other scenes, based on what the user is currently interacting with either in-world or in chat.
+J. Cross-use media: Drag pictures, music, video, and meshes from desktop into the world, and drag these around in-world like a post-it note. Resize and rotate them by dragging corners. Put pictures or video on a mesh and click, and it tiles over the given mesh face using the current placement as anchor.
+K. Search Engine Optimization: a Google'able page for every object (regardless of what scene it appears in), responsive to browser, app, or googlebot use.
+
+
+DESIGN:
+
+(Letters are for reference and do _not_ correspond with the goals above.)
+
+
+A. NOUNS: There are three kinds of objects known to users: Persons, Places, and Things. (Hereafter called "nouns".)
+
+
+B. MEDIA: There are also internal Media objects that are not made individually obvious to users. These include meshes, materials, textures, video, audio, and (for the blogging use case,) text. When a user drags media into the scene, we accept standard files in various formats. These do not typically include the kind of data that we want to expose to users, such as nametag or author. Therefore we always create an appropriate ki1r0y Thing whenever someone drags in media, and we expose only the ki1r0y Thing to the user directly. (The default initial value for nametag comes from the media filename, and the default description comes from context such as the author and scene name.) So, for example, a visitor to a "Texture Gallery" can Like or Comment on a flat picture named "Gingham", but they cannot Like just the isolated material when it has been used in a teacup model. The media data itself is a separate immutable object, referenced by name in the Things that use it.
+
+
+C. IDTAG: Each noun and media definition has a globally unique idtag:
+
+  1. MEDIA IDTAG: Media uses the hash of the contents.
+
+  2. PERSONS IDTAG: In ki1r0y, the Person idtag is the facebook user id. (This is a numeric id, as Facebook has deprecated usernames.)
+
+  3. THING IDTAG: The idtag of a Thing is the hash of the json data (defined in D, below).
+    
+  4. PLACE IDTAG: Places (defined in E, below) generate a new GUID when first created de novo, which is retained through all authors' modifications of the same Place. The idtag is the hash of the (guid+authorIdtag).
+  
+  5. ITEMS: Media and Persons can always be distinguished by context. However, Things and Places -- collectively called "items" -- can both appear in some contexts. So, Thing idtags have a different length than Place idtags. (Achieved by prefixing a 'P'.)
+ 
+
+D. THINGS: "Things" correspond to long-lived ordinary objects or entities, and compose in hierarchical groups (aka a scene graph).
+
+  1. CONTENT: The data includes such serializable data as nametag, description, Media (idtags), and list of children. Any change to Thing content, e.g., to the nametag or description text, creates new json, and the therefore a new idtag. The nametag and description are used in discovery such as: Facebook user stories, open graph tags, SEO, finding and display of related content, etc. Nametag is not unique or registered, and functions like a Twitter hashtag. (Note that Facebook activity such a Likes and Comments are not part of the content, and do not change a Thing's identity.) HTML is not allowed within nametag or description.
+
+  2. ATTRIBUTION: Thing data also includes the idtag of the Person that authored this particular Thing (as specified by its content/idtag), as well as the idtag of the antecedent Thing (if any) that was edited to produce this Thing. (Forward pointers from Things to their derivatives are deliberately not supported as this would, in my opinion, create a false responsibility.) However, the author and antecedent are not included in computing the content hash idtag. The reason for this is that ki1r0y attempts to recognize exact duplication as the same identicial object (e.g., if two authors produce the exact same result, or if the same author edits something and then edits back without actually using "undo"). See Goals, above.
+  
+  3. PLACEMENT: Size, position, and rotation are not part of each Thing data. Instead, the child data within a parent Thing includes these for each child. This allows the exact same Thing idtag to be used with different placement in different instantiations (within the same or different scene graphs). Changing a Thing's placement does not change its identity -- but it does change the identity of its parent!
+
+  4. EXPOSURE: The content, attribution, and placement of an instance are all surfaced to users in a text property editor. (In the Ki1r0y UI, there is a permanent information area in a side bar that always display the info for whatever has been clicked on most recently. There is no "edit mode", and changes within the property editor immediately affect the scene (possibly making a new Item, new parent Item, etc. A serious limitation of this particular UI is that it kills the feeling of immersion. The tradeoff in Ki1r0y is that this information sidebar ALSO displays a Facebook Like button and Comments discussion for this object and all the antecedents.)
+  
+  5. MULTIPLE INSTANCES: The idtag is globally unique, but there can be multiple instances of the same idtag as sibling children of a parent, or within a scene generally, or even between different scenes. This allows the "same" object (as specified by idtag) to accumulate likes, comments, SEO ranking, etc., regardless of where it appears.
+  
+    a. INSTANCE: If there are multiple instances of the same idtag as children of the same parent, the child is given an additional identifier called "instance", that is unique among the siblings. It is ki1r0y's job to not use instance identifiers unless necessary. (The Unity implementation organizes the scene graph structure alphabetically by Unity object "name". We keep that structure stable by having the Unity "name" be the idtag if possible, otherwise instance, with the instance being the idtag suffixed by a count of the number of children that have the same prefix.)
+    
+    b. PATH: Within a single scene, any instance can be uniquely identified by a "path", which is a "/"-separated string of instance or idtag identifiers, starting from the scene graph root, and stopping at the object. The entire path as a whole has equivalent semantics to a browser DOM node id attribute.
+    
+  6. THUMBNAIL: Each Thing also has a thumbnail picture with the same idtag as the Thing (rather than being the hash of the image contents). This is used in display, Facebook, etc. It is automatically produced and uploaded when the Thing is saved. (A limitation of this approach is that the thumbnail only shows the Thing being used within one scene graph.)
+  
+  7. CHILD DATA: Within the Thing content, each child's data is not duplicated, but included by reference through the child's idtag. For example a child might be specified as {idtag: "x", position: {x: 1, y: 2, z: 3}, size: {x: 1, y: 1, z: 2}, rotation: {w: 0.7, x: 0.7 y: 0.7, z: 0.7}, color: {r: 0.4, g: 0.2, b: 0.9}}.
+    a. To instantiate the child, the data for that idtag will need to be fetched, as well as any mesh and othe media. However, In support of goal B, a rough approximation can be immediately rendered as a box of the correct placement and color.
+    b. An instance tag may also be included (see (D.5.a) above).
+    c. To speed up Place lookup (see (E.1) below), the Place idvtag may also be included.
+
+
+E. PLACES: "Places" are mutable Things that retain a stable identity. E.g., if something changes within Montana, it's still Montana. This is most often used in Ki1r0y for a toplevel "scene" or "blog entry", but can also be used for a "wall" or other Place within a scene that you want someone to be able to return to even after changes (such as re-arranging pictures on the wall).
+
+  1. VERSION/IDVTAG: A Place's data can be almost entirely represented as an ordered map of timestamps => Versions, where each Version is an idtag of the root Thing in the scene graph. In other words, each Place is internally defined as timestamped series of Things corresponding to each change.  When we want to emphasize that a Thing is a Version, we refer to its idtag as an idvtag.
+  
+  2. GUID: Place data also includes the original GUID. Note that the definition of Place idtag, (C.4) above, is what allows users to modify each others scene-graph back and forth, without creating an unbounded set of Place idtags (Goal F). (Note that a Place's idtag does not change even as Versions are added (or removed), while the idvtag is different for each Version in time.) While it is reasonable to have multiple instances of the same immutable Thing in a scene, it does not makes sense to have multiple instances of the same mutable Place. (E.g., why bother? And what would happen when one is mutated and not the other, while both retain their identity?) So, when a copy is made (including a copy of a whole scene), a new GUID is assigned for the Place and any child Places (recursively).
+  
+  3. OPTIMIZATIONS: While a Place conceptually has children, the child data is in each Version data, not the Place data. In any case, In ki1r0y, we trade increased space for improved lookup time, by duplicating the author idtag, nametag and description data of the current Version within the Place data. We also save time with renaming GUIDs and such by requiring that only a Place's parent (if any) must also be a Place. (Also, see (E.7.b) above.)
+  
+
+F. SCENE STATE: Each noun and media object has an idtag-based URL for its data. The immutable data (at least) must not have any query or fragment part (to preserve cacheability). (In ki1r0y, noun data is is public to anyone for reading. Downloading media and uploading media and nouns are both access-controlled relative to the context of a scene. (Goal G and Design G))
+
+  1. PERSISTING: Persisting a scene requires saving only the changed Thing and everything above it in the scene graph. This is fast. (Note if a Thing and its children have not changed, then neither does its idtag, and no new upload is necessary for that whole branch. Also note that Media are immutable, were uploaded at import time, and are included in the persisted scene data only by reference to the media idtag, and so do not participate in saving the scene state.)
+  
+     a. The results of a direct user action is saved by only the user that made the change (e.g., mouse up at the end of an object drag), and attributed to that user. Overlapping saves by different users in the same scene are, by construction, to different Places, and therefore do not interfere with each other. (In ki1r0y, overlapping saves by the same user do not occur either becuase of of synchronous code, event queues for saving, or a lock.)
+
+     b. "Play state" for media (including scripts) are outside the scope of this document, but consider "start timestamp" to be an ordinary persistable property of any such media player (although perhaps not part of the hashed content).
+     
+     c. Scripts are outside the scope of this document, but are considered to be running on behalf of some owner, such that only one participant needs to save results (when something interesting happens, or on some heartbeat). But again, multiple saves by multiple "authors" are to different scenes.
+
+  2. RESTORATION: Entry or transporting to a scene -- or a different version of the same scene -- consists of replacing each node in the current (originally empty) scene graph as necessary, with the data from each new idtag. (This description covers the case of changinging version very efficently for "undo" or for bouncing around in the history display. Also, this replacement occurs in two steps for each node in the scene graph, as described in (D.7.a) above.)
+
+     a. Popular Things and popular Media are identical regardless of scene, parent, or the author that introduced them. Thus popular items are likely to be cached across scenes by browsers.
+     
+     b. Ki1r0y routes the URLs of immutable data (Things and Media) as an ordinary http(s) static server-file-system fetch, so the server can memcache, etc. The equivalent is also true for DHT implementations.
+     
+     c. The ephemeral streaming collaboration state (e.g., text chat, avatar motion, physics, audio and other streaming media data, etc.) is outside the scope of this document, except that any such streaming groups should be identified by the Place idvtag. For example, deliberately entering a specific past version will place the user in the correct persisted state, and that user should see only those other users who deliberately entered the same past version. It is unspecified here whether late arrivals to the default "current" version of a place should be placed a different streaming group then those already present if the first group have made a persisted change. (For example, a map of currently live idvtags => streaming groups could be updated after changes so that multiple idvtags would map to the same value -- or not.) In any case, the correct semantics is for late arrivals to obtain the data for the most recent allowed idvtag in that group, and then apply stream data for any timestamps after that.
+
+
+G. Each noun has an idtag-based URL (without any required query or fragment part) for visiting (whether in a browser, app, googlebot, facebook crawler, etc.).
+  1. The page itself is public to anyone, giving at least human-formatted information and links based on the above json data and thumbnails pointed to by that data. However, authorized users (e.g., logged-in facebook friends) are given additional capabilities (including the keys to Media). Thus only authorized users can "enter", but everyone can see title, description, thumbnail, and who to ask permission of (e.g., who to befriend). (E.g., the thumbnail is shown to anyone who visits in a browser and does not yet have the Unity plugin, as an inducement to do so.)
+  2. The "related content" display (goal I) is used to handle ambiguous choices:
+    a. A Person page lists the toplevel Places (scenes) that the Person has authored.
+    b. A scene Place accepts an optional timestamp query parameter, defaulting to the latest. Other version are available in the initial related content display. (The most recent older timestamp is used when a request is for a timestamp that doesn't exist.)
+    c. A Thing page accepts an optional Place (scene) query parameter. Other Places containing the same Thing are shown in the initial related content display, sorted based on information about the logged in user (e.g., recently visited first, inaccessible non-friend Places list, etc.). The first such entry is the default if not specified.
+
+
+I. There is always a canonical URL for each Thing, with optional query parameters for Place (scene) and timestamp.  As the user moves and interacts with Things, the system maintains the current canonical URL.
+  1. Browser location URLs and history are updated with this info, so that bookmarks or email/messaged cut-and-pasted URL bring you back to the same location.
+  2. The additional parameter is given to Facebook (during likes/comments) as the opaque source/campaign info. That info is given back to the system as a Facebook-specific campaign query parameter when someone clicks on a user story in Facebook, and the system treats that info in the same way as for its own scene-defining query parameter. This allows the URL of, e.g, each Like of the same object to be the same, so that Likes accumulate on an object regardless of scene, and yet clicking on something in Facebook takes the new visitor to the same location as the Person whose Like the new user is following.
+  3. (Extra detail that doesn't change the semantics: The location that a user goes to when going to a Thing (or to a Person) is actually more complicated. Each Thing (or avatar) defines a realtive "go to" action that positions the visitor, and following a URL invokes that action.  For Things, this defaults to being in front of the object with the object nearly filling the display frame. However, if someone else is already "there", additional multiple users are arranged next to each other, with their cameras located in the "best view" that the original user had (until the users moves, at which point the camera animates back to their head). For areas with seating, the avatar takes an available seat and the camera takes the best view. For Persons, the the default "goto" action is to transitively goto the same object that the target Person's avatar is at, if any, and otherwise to face the avatar.)
+
+
+K. GARBAGE COLLECTION: Some data becomes obsolete when:
+ - Things and Places are explicitly deleted by users,
+ - versions become obsolete from simplifying attribution (e.g., snapping author chain short when an intermediate link by the same author with no parent, derivatives, or external likes/comments of its own)
+ - older versions are thinned (e.g., culling older versions to one per day if more than a week old, one per month if more than a year, etc.)
+Ki1r0y cleans up the storage through a background realtime garbage collector on the data store. We don't currently use reference counting because it would impose complex transaction robustness requirements.
+
+-----------
+FUTURE WORK:
+
+Almost all of this had been working at one point (in Ki1r0y or Croquet), but I'm in a back-to-basics refactoring right now. However, there are a few parts I've never built out (and could thus be bullshit):
+
+A. Author chain from Thing to its antecedents.
+
+B. Access control for Media, and user-designated copy costs of Things (commerce).
+
+C. In order for the SEO goal to be met, the URLs for visiting must use word-text (e.g., author/nametag/optional-datestamp) rather than an idtag hashcode, because Google uses URL pathname component text as signal, and downgrades numbers.
