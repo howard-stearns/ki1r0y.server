@@ -84,15 +84,15 @@ function addHistory(room, obj) {
 
 /********************************/
 // Set up handlers on a societ.io listener.
-exports.setup = function (io) {
+exports.setup = function (io, logUser) {
     io.sockets.on('connection', function (connection) {
         var userNametag = false;
-        var userHeaders;
+        var userHeaders; // To identify this user for apache logging purposes.
         var userColor = false;
         var sceneIdtag = '';
         function log(path, params, error) {
             var req = {url: path || connection.handshake.url, headers: userHeaders};
-            if (params) { req.url.pathname += '&' + querystring.encode(params); }
+            if (params) { req.url += '?' + querystring.encode(params); }
             if (error) {
                 if (error.stack) { console.log(error.stack); }
                 req.statusCode = 500;
@@ -108,10 +108,9 @@ exports.setup = function (io) {
             connection.join(sceneIdtag);
             userNametag = htmlEscape(message.nametag);
             // FIXME: get a unique user idtag (or even authentication) rather than nametag (which typicallyt has spaces).
-            // This is what express loggers will expect for identifying users.
-            userHeaders = {authorization: "Basic " + new Buffer(message.idtag + ':').toString('base64')};
+            userHeaders = logUser(message.idtag);
             userColor = getRandomColor(sceneIdtag);
-            log('/join?scene=' + sceneIdtag + '&plugin=' + message.plugin);
+            log('/join', {scene: sceneIdtag, plugin: message.plugin});
             // This user gets an avatar color...
             connection.emit('color', userColor);
             // ... and the recent session messages...
@@ -136,16 +135,16 @@ exports.setup = function (io) {
         });
         // A message to everyone in the room, including the sender.
         connection.on('message', function (message) {
-            log(null, {scene: sceneIdtag, m: message});
+            log('/message', {scene: sceneIdtag, m: message}); // FIXME: remove after beta.
             var msg = addHistory(sceneIdtag, new Message(htmlEscape(message), userNametag, userColor));
             io.sockets.in(sceneIdtag).emit('im', msg);
             // Also fire off a search with the results going only to the sender.
             db.search(message, function (err, results) {
                 if (err) {
-                    log('/search?', {scene: sceneIdtag, m: message}, err);
+                    log('/search', {scene: sceneIdtag, m: message}, err);
                     connection.emit('error', err.message);
                 } else {
-                    log('/search?', {n: results.length});
+                    log('/search', {n: results.length});
                     connection.emit('related', results);
                 }
             });
@@ -163,9 +162,9 @@ exports.setup = function (io) {
                 var msg = addHistory(sceneIdtag, systemMessage(userNametag + ' left.', userColor));
                 // Missing io.sockets.clients is weird, but it can happen when there are startup errors and the user leaves the page.
                 var isLast = !io.sockets.clients || io.sockets.clients(sceneIdtag).length === 1;
-                log('/exit?' + querystring.encode({scene: sceneIdtag}), null, !io.sockets.clients && {name: 'no clients'});
+                log('/exit', {scene: sceneIdtag}, !io.sockets.clients && {name: 'no clients'});
                 if (isLast) { // if that's the last one, clean up.
-                    log('/shutdown?' + querystring.encode({scene: sceneIdtag}));
+                    log('/shutdown', {scene: sceneIdtag});
                     delete allHistory[sceneIdtag];
                     delete allColors[sceneIdtag];
                     delete allCounters[sceneIdtag];
