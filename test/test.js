@@ -11,6 +11,9 @@ var request = require('request');
 var cheerio = require('cheerio');
 var _ = require('underscore');
 var _s = require('underscore.string');
+var testUserPass = process.env.TEST_USER_AUTH;
+if (!testUserPass) { throw new Error('Please specify TEST_USER_AUTH'); }
+var credentials = {user: 'JS Kilroy', pass: testUserPass};
 
 describe('server', function () {
     var port = 3000, base = 'http://localhost:' + port, ourServer; // the server we should talk to
@@ -43,13 +46,25 @@ describe('server', function () {
     // reuseable tests
     function auth(path, method) { // method (e.g., 'get') path requires auth
         // For delete method and the admin routes, we will require an admin user.
-        it('checks authorization for ' + path + ' ' + (method || 'get'));
+        method = method || 'get';
+        it('checks authorization for ' + path + ' ' + method, function (done) {
+            request({url: base + path, method: method, auth: {user: 'BAD'}}, function (error, res) {
+                assert.ifError(error);
+                assert.equal(res.statusCode, 401, res.statusMessage);
+                done();
+            });
+        });
+    }
+    function maybeAuthed(path) { // media requires credentials, other get methods do not.
+        var opts = {url: base + path};
+        if (path.indexOf('media') !== -1) { opts.auth = credentials; }
+        return opts;
     }
     // Define tests that get path multiple times, ensure mime type, and any optionalTests({response, body}),
     function page(path, optionalMime, optionalTests) {
         var data = {};
         it('get ' + path, function (done) {
-            request(base + path, function (error, res, bod) {
+            request(maybeAuthed(path), function (error, res, bod) {
                 assert.ifError(error);
                 data.response = res;
                 data.body = bod;
@@ -84,7 +99,7 @@ describe('server', function () {
         var method = _.contains(['/fbusr', '/pRefs'], dir) ? 'POST' : 'PUT';
         auth(pathname, method);
         it('uploads ' + pathname, function (done) {
-            var body = {uri: base + pathname, method: method};
+            var body = {uri: base + pathname, method: method, auth: credentials};
             function testBody() {
                 request(body, function (e, res, body) {
                     assert.ifError(e);
@@ -115,12 +130,12 @@ describe('server', function () {
         var uri = base + path;
         auth(path, 'delete');
         it('deletes ' + path, function (done) {
-            request({uri: uri, method: 'DELETE', json: true}, function (e, res, b) {
+            request({uri: uri, method: 'DELETE', json: true, auth: credentials}, function (e, res, b) {
                 assert.ifError(e);
                 assert.equal(res.statusCode, 200, res.statusMessage);
                 assertOk(b);
                 // And now a GET produces file-not-found.
-                request(uri, function (e, res) {
+                request(maybeAuthed(path), function (e, res) {
                     assert.ifError(e);
                     assert.equal(res.statusCode, 404, res.statusMessage);
                     done();
@@ -140,6 +155,7 @@ describe('server', function () {
         // So the solution is to not spawn until the stream is truly open.
         logStream.on('open', function () {
             ourServer = shell.spawn('npm', ['start'], {stdio: ['pipe', logStream, logStream]});
+            ourServer.on('exit', function (code) { if (code) { throw new Error("Server failed with code " + code + ". See test.server.log."); } });
             waitForChange(true, done);
         });
     });
