@@ -48,11 +48,11 @@ function timing(category, action, start, label) { // Report a timing event.
 	console.log('timing', category, action, elapsed, label);
 	ga('send', 'timing', category, action, elapsed, label);
 }
-function social(platform, action, targetUrl) { // Report a social event.
+function social(platform, action, targetUrl) { // Report a social event: (un)like, comment
 	console.log('social', platform, action, targetUrl);
 	ga('send', 'social', platform, action, targetUrl);
 }
-function logEvent(category, action, label, value) { // Report a generic event.
+function logEvent(category, action, label, value) { // Report a generic event in categories: admin, system, create, discovery, communication
 	console.log('event', category, action, label, value);
 	ga('send', 'event', category, action, label, value);
 }
@@ -69,7 +69,7 @@ function page() { // Report a virtual page view.
 window.fbAsyncInit = function () {
     var app = {
 		appId      : FBAPPID,
-        //version    : 'v2.3', // Modern docs say do this. Is our old stuff ready/
+        //version    : 'v2.3', // Modern docs say do this. Is our old stuff ready?
 		status     : true, // check login status
 		cookie     : true, // enable cookies to allow the server to access the session
 		xfbml      : true  // parse XFBML
@@ -77,7 +77,7 @@ window.fbAsyncInit = function () {
 	app.channelUrl = '//www.ki1r0y.com/channel.html';
 	console.log('FB init', app);
 	FB.init(app);
-	FB.Event.subscribe('auth.statusChange', doLogin);
+	FB.Event.subscribe('auth.statusChange', doLogin); // Analogous to putting onlogin="doLogin" on the fb:login-button element.
 	// Callbacks for Like and Comment.
 	FB.Event.subscribe('edge.create', function (targetUrl) {
 		social('facebook', 'like', targetUrl);
@@ -90,17 +90,17 @@ window.fbAsyncInit = function () {
 	});
 };
 // Load the Facebook SDK Asynchronously
-(function (d) {
+(function (d, scriptTag, id) {
 	if (!FBAPPID) { // Running locally for testing.
 		window.setTimeout(function () { doLogin({status: 'connected'}); }, 100); // synthesize login callbck
 	} else {
-		var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+		var js, id = 'facebook-jssdk', ref = d.getElementsByTagName(scriptTag)[0];
 		if (d.getElementById(id)) { return; }
-		js = d.createElement('script'); js.id = id;
+		js = d.createElement(scriptTag); js.id = id;
         js.async = true; // Maybe this is the default in modern versions?
 		js.src = "//connect.facebook.net/en_US/all.js";
         //js.src = "//connect.facebook.net/en_US/sdk.js";  // Modern docs say to use this instead.
 		ref.parentNode.insertBefore(js, ref);
 	}
-}(document));
+}(document, 'script', 'facebook-jssdk'));
 

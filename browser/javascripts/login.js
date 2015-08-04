@@ -3,7 +3,7 @@
 /// Provides doLogin handler for FB login status change, and doLogout handler for fake FB logout button.
 /// Copyright (c) 2013 Beyond My Wall. All rights reserved until we get a clue.
 /// The Facebook API is copyright by Facebook.
-var FB, SCENE, enterIfReady, updateUser, dimension, logEvent, timing; // defined elsewhere
+var FB, SCENE, enterIfReady, updateUser, dimension, logEvent, timing, get; // defined elsewhere
 
 // We want set with the right dimensions once we have them, so that all page views have the right dimensions.
 // So we don't send
@@ -16,22 +16,15 @@ function onLogout(response) {  // Callback from FB after logout.
     console.log('onLogout', response);
     window.location.reload();  // Force fb login button to actually show login, get out of scene, etc.
 }
-// Facebook has deprecated the use of the unique-but-not-permanent username, and no longer supplies it in user responses.
-function userResponseNametag(response) { // Use best full name
-    return response.name_format ||
+function onMe(response) {      // Handler for FB.api user data.
+    console.log('onMe', response);
+    // Use best full name. Facebook has deprecated the use of the unique-but-not-permanent username, and no longer supplies it in user responses.
+    var nametag = response.name_format ||
         response.name ||
         (response.first_name && response.last_name && (response.first_name + ' ' + response.last_name)) ||
         response.first_name ||
         response.last_name;
-}
-// Do we need both of these? If not, we can inline userResponseNametag, too.
-function onUserData(response) {   // Handler for FB /me API.
-    console.log('onUserData', response);
-    enterIfReady(null, response.id, userResponseNametag(response));
-}
-function onMe(response) {      // Handler for FB.api user data.
-    console.log('onMe', response);
-    onUserData(response);      // Different kinds of pages could provide different javascripts that handle this in different ways.
+    enterIfReady(null, response.id, nametag);
     // From here down is common to all that use FB login.
     var logout = document.getElementById('fbLogout');
     logout.setAttribute('title',
@@ -48,7 +41,7 @@ function onMe(response) {      // Handler for FB.api user data.
     updateUser({
         firstname: response.first_name,
         lastname: response.last_name,
-        nametag: userResponseNametag(response),
+        nametag: nametag,
         description: response.about,
         scene: SCENE.idtag, // so that last-visited can be updated
         gender: response.gender // Required by OpenGraph
@@ -63,16 +56,16 @@ function doLogin(response) {   // Handler for FB login status change.
         if (FB) {
             FB.api('/me', onMe);
         } else { // Dummy for testing
-            onUserData({name: 'local trevor', id: '100004567501627'});
-            //onUserData({name: 'howard local', id: '100000015148499'});
-            //onUserData({name: 'local kilroy', id: '100007663687854'});
+            onMe({name: 'local trevor', id: '100004567501627'});
+            //onMe({name: 'howard local', id: '100000015148499'});
+            //onMe({name: 'local kilroy', id: '100007663687854'});
         }
         break;
     case 'unknown': // logged out
         display = 'none';
         break;
     case 'not_authorized':
-        document.getElementById('status').innerHTML = "Waiting for you to approve the \"junkShop\" app. Click the 'Login' button and Facebook will ask you in a pop-up to confirm that you want to use this app.";
+        document.getElementById('status').innerHTML = "Waiting for you to approve the \"ki1r0y\" app. Click the 'Login' button and Facebook will ask you in a pop-up to confirm that you want to use this app.";
         break;
     }
     dimension('scene', SCENE.idtag);
@@ -82,5 +75,6 @@ function doLogin(response) {   // Handler for FB login status change.
 function doLogout() {          // Click handler for our FB-ish logout button.
     console.log('doLogout');
     document.getElementById('authedInput').style.display = 'none';
+    get('/logout'); // Clear any server-side session
     if (FB) { FB.logout(onLogout); }
 }
