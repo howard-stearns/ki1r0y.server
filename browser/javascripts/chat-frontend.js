@@ -47,7 +47,7 @@ function addMessage(msg, doKillTyping) {
 			+ author + '</span>'
 			// + '<span style="color:Gray">@' + time + '</span>'
 			+ ': ' + message;
-		row.setAttribute('title', ((author === 'Kilroy') ? 'Message from system' : 'Message from ' + author) + ' at ' + time + '.');
+		row.setAttribute('title', ((author === 'Ki1r0y') ? 'Message from system' : 'Message from ' + author) + ' at ' + time + '.');
 		contentElt.appendChild(row);
 		contentElt.scrollTop = contentElt.scrollHeight;
 	}
@@ -82,7 +82,7 @@ function addLocalMessage(message, idtag) {
 	addMessage({
 		time: (new Date()).getTime(),
 		text: '<i>' + message + '</i>',
-		author: 'Kilroy',
+		author: 'Ki1r0y',
 		color: 'Silver',
 		idtag: idtag
 	});
@@ -109,7 +109,7 @@ function errorMessage(msg) {
 	addLocalMessage('<span style="color:#a85a74">' + msg + '</span>', msg); // color is FB button triad 1
 	logEvent('system', 'error', msg);
 }
-// Advice from kilroy to user. Keep just the latest one, so that transcript doesn't fill with annoying messages.
+// Advice from ki1r0y to user. Keep just the latest one, so that transcript doesn't fill with annoying messages.
 function advice(msg) {
 	removeMessage(msg);
 	addLocalMessage(msg, msg);
@@ -180,7 +180,7 @@ function joinChatIfPossible(userIdtag, userNametag, sceneIdtag) {
     userIdtagged = userIdtag || userIdtagged;
 	userNametagged = userNametag || userNametagged;
 	sceneIdtagged = sceneIdtag || sceneIdtagged;
-	statusElt.innerHTML = userNametagged + ': ';
+	statusElt.innerHTML = (userNametagged || 'Log In Required') + ': ';
 	if (connected && userNametagged) {
 		joined = true;
 		// FIXME: still needs VB ActiveX plugin detection on IE.

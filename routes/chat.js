@@ -14,7 +14,7 @@ function htmlEscape(str) {
 
 /********************************/
 var allColors = {}; // currently available colors per room
-// 'Silver' is not in the list, as: 1) It is not very visible, and 2) It is reserved for Kilroy.
+// 'Silver' is not in the list, as: 1) It is not very visible, and 2) It is reserved for Ki1r0y.
 // 'White', 'Yellow', 'Lime' and 'Aqua' are not in the list because they are not very visible.
 var colorList = [ 'Gray', 'Black', 'Red', 'Maroon', 'Olive', 'Green', 'Teal', 'Blue', 'Navy', 'Fuchsia', 'Purple', 'Orange' ];
 // Cycles randomly through the colors available in the specified room. Reloads (the same set of) colors as needed.
@@ -37,13 +37,13 @@ function Message(message, userName, userColor, typing) {
     this.color = userColor;
     this.typing = typing;
 }
-// System messages are from Kilroy.
+// System messages are from Ki1r0y.
 function systemMessage(message, optionalMessageColor) {
     message = '<i>' + message + '</i>';
     if (optionalMessageColor) {
         message = '<span style="color:' + optionalMessageColor + '">' + message + '</span>';
     }
-    return new Message(message, 'Kilroy', 'Silver');
+    return new Message(message, 'Ki1r0y', 'Silver');
 }
 
 var allHistory = {}; // latest 100 messages per room
