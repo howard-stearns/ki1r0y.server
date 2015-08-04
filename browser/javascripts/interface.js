@@ -1,7 +1,7 @@
  "use strict";
 /*jslint browser: true, devel: true, vars: true, plusplus: true, continue: true, nomen: true */
 /* Copyright (c) 2013 Beyond My Wall. All rights reserved until we get a clue. */
-var FileReader, FB, getUnity, sayOnce, chatLogin, doLogin, advice, addHistory, kilroyURL, peopleURL, canonicalLocation, _;
+var FileReader, FB, getUnity, sayOnce, chatLogin, advice, addHistory, kilroyURL, peopleURL, canonicalLocation, _;
 var updateLinksStyles, addTimestamp, addPendingHistory, errorMessage, page, logEvent, dimension, timing, removeChildren, makeReorderable, thumbnailURL;
 var unityObject, unityReady, post, finalHandler, _, shorten;
 

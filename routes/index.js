@@ -66,8 +66,9 @@ router.uploadRefs = function (req, res, next) {
 // We keep data (e.g., scenes and thumbnail) that do not come from fb /me API response.
 // We currently keep all that info together, so we have to read the existing file in order
 // to not lose anything when we re-write it. A (dubious) side-benefit is that we are somewhat
-// insulated from fb and test-harness changes. (See onUserData in the public/javascripts or templates.)
+// insulated from fb and test-harness changes. (See onMe in the public/javascripts or templates.)
 router.updateUser = function (req, res, next) {
+    console.log('FIXME updateUser headers:', req.headers);
     db.updateUser(req.params.id, req.body, makeUploadResponder(req, res, next));
 };
 
