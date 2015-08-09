@@ -10,6 +10,8 @@ var bodyParser = require('body-parser');
 var multer  = require('multer');
 var passport = require('passport');
 var BasicStrategy = require('passport-http').BasicStrategy;
+var FacebookStrategy = require('passport-facebook').Strategy;
+var request = require('request');
 var socketio = require('socket.io');
 var _ = require('underscore');
 
@@ -118,8 +120,10 @@ app.post('/thumb/:id', routes.uploadThumbnail);
 app.post('/media/:id', routes.uploadMedia);
 
 // These aren't needed for any of the above.
-app.use(bodyParser.json());                                                                   // Our put/post data 
-app.use(multer({dest: path.resolve(__dirname, '../uploads/'), putSingleFilesInArray: true})); // Media file uploads
+app.use(bodyParser.json()); // Our put/post data 
+var upload = multer({dest: path.resolve(__dirname, '../uploads/')});
+var singleFileUpload = upload.single('fileUpload'); // route converts 'fileUpload' form field to req.file (an object with 'path' property), and adds any text fields to req.body
+// FIXME: The default server-side cookie implementation leaks memory.
 app.use(session({ // Create/parse session cookies to make authorization more efficient.
     secret: secret('COOKIE_SIGNER'),
     resave: false,
@@ -127,11 +131,10 @@ app.use(session({ // Create/parse session cookies to make authorization more eff
 }));
 // When passport first authenticates a user, this is called to pickle the user. req.session.passport.user will get the second value passed to done.
 passport.serializeUser(function (user, done) { done(null, JSON.stringify(user)); });
-// Converts req.session.passport.user to user object, which passport XXXXXXXX
+// Converts req.session.passport.user to user object, which passport ...FIXME
 passport.deserializeUser(function (pickled, done) { done(null, JSON.parse(pickled)); });
 
 var testUserAuth = secret('TEST_USER_AUTH');
-// The next two functions are passport's verify and authenticate.
 passport.use(new BasicStrategy(function (username, password, done) {
     // When passport does not find a serialized user in the session cookie, it attempts to obtain the credentials based on the strategry.
     // If there are credentials, it invokes this callback to produce an authenticated user from the given credentials.
@@ -141,9 +144,37 @@ passport.use(new BasicStrategy(function (username, password, done) {
              {idtag: '100007663687854', username: username});
     });
 }));
+passport.use(new FacebookStrategy({
+    clientID: app.locals.fbAppId,
+    clientSecret: secret('FB_CLIENT_SECRET'),
+    //enableProof: true, //FIXME
+    passReqToCallback: true // Causes req to be the first agument to the following function.
+}, function (req, accessToken, refreshToken, profile, done) {
+    _.noop(refreshToken);
+    //console.log('fb authenticate', profile && profile.displayName, req.params.friend, req.url);
+    request.get({ // Ask facebook if this authenticated user is a friend of the requested user.
+        // We do this at the server so that false clients can't spoof affirmative responses.
+        // Asking for one specific friend is much easier than making multiple paged requests for all friends.
+        url: 'https://graph.facebook.com/v2.4/me/friends/' + req.params.friend + '?access_token=' + accessToken,
+        json: true
+    }, function (err, response, body) {
+        if (!err && (response.statusCode !== 200)) { err = new Error(response.statusMessage); }
+        if (err || !body.data.length) {
+            profile = null;
+        } else {
+            profile.authorizedFriend = req.params.friend; // stamp this user session as being for this friend.
+            // When we need to check a new friend, we currently repeat the WHOLE authentication/autorization process,
+            // including the round trip to authenticate the user. IWBNI we optimized this by skipping the auth if possible,
+            // and do JUST the friend-check authorization.
+            profile.idtag = profile.id; // adapt from passport name
+            profile.username = profile.displayName; // ditto
+            logUser(profile.idtag, req.headers); // So that this request can be loged with correct user idtag.
+        }
+        return done(err,  profile);
+    });
+}));
 // This one is is used in the route to determine whether the given authenticated user is authorized for the next step in the route.
 function authorize(req, res, next) {
-    if (true) { return next(); }
     var skipLogin = 'skipLogin';
     function verify(err, user, info) { // Ultimately, our job is to call next(falseyOr401orOtherError):
         if (err) { return next(err); }
@@ -165,20 +196,38 @@ function authorize(req, res, next) {
 }
 app.use(passport.initialize());
 app.use(passport.session());
+// Clears passport session. Browser code can invoke this (e.g., as xmlhttp), but this can't log the user out of FB in the browser.
+app.get('/logout', function (req, res) {
+    req.logout();
+    res.redirect('/');
+});
+function echoUser(req, res) { res.send(req.user); } // For testing, echo the pickled authorized user object, if any.
+app.get('/testAuth', authorize, echoUser);
+// Facebook auth development: answers data if logged in FB user is a friend of specified id
+app.get('/fbtest/:friend', function (req, res, next) {
+    if (req.isAuthenticated() && (req.user.authorizedFriend === req.params.friend)) {
+        logUser(req.user.idtag, req.headers);
+        return setImmediate(next);
+    }
+    // calbackURL is "documented" at https://github.com/jaredhanson/passport-facebook/issues/2
+    passport.authenticate('facebook', {callbackURL: '/fbtest/' + req.params.friend})(req, res, next);
+}, echoUser);
 
-app.use('/media', authorize, immutable('media'));
+// FIXME: Authentication isn't enough. Need to figure out how to authorize by seeing that user if friend of author of the current space. (How to tell current space?)
+app.use('/media', /*FIXME authorize,*/ immutable('media'));
 //      '/fbusr (person) download isn't needed, and it would create issues for access control and when there are large numbers of user-created scenes.
-app.get('/xport/:objectIdtag', authorize, routes.exportMedia); // A dynamically generated .zip of the media associated with a (composite) thing.
+app.get('/xport/:objectIdtag', routes.exportMedia); // A dynamically generated .zip of the media associated with a (composite) thing.
 
 // Corresponds to a get with the same url. (E.g., therefore 'put', not 'post')
-app.put('/place/:id.json', authorize, routes.uploadPlace);
-app.put('/thing/:id.json', authorize, routes.uploadObject);
-app.put('/thumb/:id.png', authorize, routes.uploadThumbnail);
-app.put('/media/:id', authorize, routes.uploadMedia); // Note that the file ending is part of the id.
-app.delete('/:collection/:id.:ext', authorize, routes.delete); // For testing
+app.put('/place/:id.json', authorize, routes.uploadPlace); //FIXME: auth if data.author is req.user.idtag
+app.put('/thing/:id.json', authorize, routes.uploadObject); //FIXME: auth if data.author is req.user.idtag
+app.put('/thumb/:id.png', authorize, singleFileUpload, routes.uploadThumbnail); //FIXME: auth if thingIdtag.author is req.user.idtag. Is there a race condition?
+app.put('/media/:id', authorize, singleFileUpload, routes.uploadMedia); // Note that the file ending is part of the id. // FIXME: No user idtag. Need to be given first by thing? Race condition?
+app.delete('/:collection/:id.:ext', authorize, routes.delete); // For testing.  //FIXME: auth if xxxIdtag.author is req.userIdtag
 // No corresponding get (hence post, not put)
-app.post('/fbusr/:id.json', authorize, routes.updateUser);
-app.post('/pRefs/:id.json', authorize, routes.uploadRefs);
+app.post('/pRefs/:id.json', authorize, routes.uploadRefs); // FIXME: what auth?
+app.post('/fbusr/:id.json', authorize, routes.updateUser); //FIXME: auth if :id is req.user.idtag
+
 
 // If we get this far, nothing has picked up the request. Give a 404 error to the error handler.
 app.use(function (req, res, next) {
