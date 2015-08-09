@@ -500,6 +500,7 @@ exports.search = search;
 
 /********* MEDIA **************/
 function thumbFromPath(id, copies, path, callback) { // Copy contents of path into a thumbnail with the given ids, and callback.
+    // FIXME: The multer package now supports a file object buffer property, as well as the path property we use. Passing this would avoid the readFile.
     var thumb = thumbFile(id);
     fs.rename(path, thumb, function (err) { // No need for newspace copy. See rmStore.
         if (err || !copies.length) { return callback(err); }

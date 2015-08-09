@@ -27,15 +27,18 @@ function makeUploadResponder(req, res, next) { // Answer a node callback tied to
 }
 // Conceptually like uploadObject, but different implementation because of their size.
 // The file extension is part of the id, because we want the urls for post/get/delete to be identical, and get is most flexible if it includes extension.
+// FIXME: abstract out the mimetype checks in each of these two functions.
 router.uploadMedia = function (req, res, next) { // Handler for saving media
-    var data = req.files.fileUpload[0];
+    var data = req.file;
+    data.extension = path.extname(data.originalname).slice(1);
     if (data.mimetype !== 'image/' + data.extension) { return next(new Error('File extension "' + data.extension + '" does not match mimetype "' + data.mimetype + '".')); }
     db.mediaFromPath(req.params.id,
                      data.path,
                      makeUploadResponder(req, res, next));
 };
 router.uploadThumbnail = function (req, res, next) { // Handler for saving thumbnails.
-    var data = req.files.fileUpload[0];
+    var data = req.file;
+    data.extension = path.extname(data.originalname).slice(1);
     if (data.mimetype !== 'image/' + data.extension) { return next(new Error('File extension "' + data.extension + '" does not match mimetype "' + data.mimetype + '".')); }
     db.thumbFromPath(req.params.id,
                      req.body.additionalIds ? JSON.parse(req.body.additionalIds) : [],
@@ -68,7 +71,6 @@ router.uploadRefs = function (req, res, next) {
 // to not lose anything when we re-write it. A (dubious) side-benefit is that we are somewhat
 // insulated from fb and test-harness changes. (See onMe in the public/javascripts or templates.)
 router.updateUser = function (req, res, next) {
-    console.log('FIXME updateUser headers:', req.headers);
     db.updateUser(req.params.id, req.body, makeUploadResponder(req, res, next));
 };
 
