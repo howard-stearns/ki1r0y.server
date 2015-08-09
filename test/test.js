@@ -47,7 +47,9 @@ describe('server', function () {
     function auth(path, method) { // method (e.g., 'get') path requires auth
         // For delete method and the admin routes, we will require an admin user.
         method = method || 'get';
-        it('checks authorization for ' + path + ' ' + method, function (done) {
+        var title = 'checks authorization for ' + path + ' ' + method;
+        if (method === 'skip') { return it.skip(title); }
+        it(title, function (done) {
             request({url: base + path, method: method, auth: {user: 'BAD'}}, function (error, res) {
                 assert.ifError(error);
                 assert.equal(res.statusCode, 401, res.statusMessage);
@@ -104,8 +106,8 @@ describe('server', function () {
                 request(body, function (e, res, body) {
                     assert.ifError(e);
                     assert.equal(res.statusCode, 200, res.statusMessage);
-                    assertMime(res); // We post form data, and the repsonse is json, ...
-                    if (_.isString(body)) { body = JSON.parse(body); } // ... but request() doesn't parse it.
+                    assertMime(res); // Even if we post form data, the repsonse is json, ...
+                    if (_.isString(body)) { body = JSON.parse(body); } // ... but request() doesn't parse it if we post formData.
                     assert.deepEqual(body, expectedResponse);
                     done();
                 });
@@ -186,7 +188,7 @@ describe('server', function () {
         var original = {filename: 'test.png'};
         paths.media = '/media/' + original.filename;
         upload(paths.media, original);
-        auth(paths.media);
+        auth(paths.media, 'skip');
         page(paths.media, 'image/png', function (data) {
             it(paths.media + ' matches upload', function () {
                 // Using assert.ok instead of assert.equal, so that a failure doesn't print all the buffer data.
