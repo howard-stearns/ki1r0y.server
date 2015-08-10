@@ -52,7 +52,7 @@ function has(elt, attributeName, substring) { // Passes if elt (or elt() if it i
 // Does not start until pretest() is true.
 // data() is then called once to produce the data.
 // The tests don't run until then.
-function onSelection(name, pretest, data, moreTests) { // expectedHistory
+function onSelection(name, pretest, data, moreTests, expectedHistory, historyNth, action) {
     var testCbs = [], selected, inited;
     describe(name, function () {
         var cockTrigger = function () { // Arrange to do all testCbs on the first UPDATE for which our pretest() is true.
@@ -156,43 +156,44 @@ function onSelection(name, pretest, data, moreTests) { // expectedHistory
         describe('object lists', function () {
             has('relatedTab', 'title', 'Related');
             has('historyTab', 'title', 'history');
-            /*xdescribe('new history row', function () {
-              var history, cells, getCell = function (index) { return cells[index].firstChild; }, hdata;
-              it('has five cells', function () {
-              history = document.getElementById('historyBody');
-              cells = history.firstChild.childNodes;
-              hdata = expectedHistory || selected;
-              expect(cells.length).toBe(5);
-              });
-              describe('thumbnail', function () {
-              var thumb = function () { return getCell(0); };
-              has(thumb, 'title', 'social');
-              has(thumb, 'src', function () {
-              return thumbnailURL((!hdata.objectIdtag || (hdata.objectIdtag === hdata.sceneIdtag))
-              ? hdata.sceneIdvtag : hdata.objectIdtag);
-              });
-              has(thumb, 'onclick', '');
-              has(thumb, 'ondragstart', '');
-              });
-              it('identifies object if any', function () {
-              var object = getCell(1);
-              shouldContain(object.getAttribute('kref'), kilroyURL(hdata.sceneIdtag, hdata.objectIdtag));
-              shouldContain(object.innerHTML, hdata.objectNametag);
-              });
-              it('identifies this scene', function () {
-              var scene = getCell(2);
-              shouldContain(scene.getAttribute('kref'), kilroyURL(hdata.sceneIdtag));
-              shouldContain(scene.innerHTML, hdata.sceneNametag);
-              });
-              it('identifies timestamp', function () {
-              var object = getCell(3);
-              shouldContain(object.innerHTML, function () { return new Date(parseInt(hdata.objectTimestamp || hdata.sceneTimestamp, 10)).toLocaleString(); });
-              shouldContain(object.getAttribute('kref'), addTimestamp(kilroyURL(hdata.sceneIdtag, hdata.objectIdtag), hdata.sceneTimestamp));
-              });
-              it('identifies activity', function () {
-              shouldContain(getCell(4).innerHTML, expectedHistory ? expectedHistory.action : name); // name of this test suite, e.g., 'entry'
-              });
-              });*/
+            describe('new history row', function () {
+                var history, cells, getCell = function (index) { return cells[index].firstChild; }, hdata;
+                it('has five cells', function () {
+                    history = document.getElementById('historyBody');
+                    cells = historyNth ? history.childNodes[historyNth].childNodes : history.firstChild.childNodes;
+                    console.log('FIXME', name, history, history.firstChild, history.childNodes);
+                    hdata = expectedHistory || selected;
+                    expect(cells.length).toBe(5);
+                });
+                describe('thumbnail', function () {
+                    var thumb = function () { return getCell(0); };
+                    has(thumb, 'title', 'social');
+                    has(thumb, 'src', function () {
+                        return thumbnailURL((!hdata.objectIdtag || (hdata.objectIdtag === hdata.sceneIdtag))
+                                            ? hdata.sceneIdvtag : hdata.objectIdtag);
+                    });
+                    has(thumb, 'onclick', '');
+                    has(thumb, 'ondragstart', '');
+                });
+                it('identifies object if any', function () {
+                    var object = getCell(1);
+                    shouldContain(object.getAttribute('kref'), kilroyURL(hdata.sceneIdtag, hdata.objectIdtag));
+                    shouldContain(object.innerHTML, hdata.objectNametag);
+                });
+                it('identifies this scene', function () {
+                    var scene = getCell(2);
+                    shouldContain(scene.getAttribute('kref'), kilroyURL(hdata.sceneIdtag));
+                    shouldContain(scene.innerHTML, hdata.sceneNametag);
+                });
+                it('identifies timestamp', function () {
+                    var object = getCell(3);
+                    shouldContain(object.innerHTML, function () { return new Date(parseInt(hdata.objectTimestamp || hdata.sceneTimestamp, 10)).toLocaleString(); });
+                    shouldContain(object.getAttribute('kref'), addTimestamp(kilroyURL(hdata.sceneIdtag, hdata.objectIdtag), hdata.sceneTimestamp));
+                });
+                it('identifies activity', function () {
+                    shouldContain(getCell(4).innerHTML, action || (expectedHistory ? expectedHistory.action : name)); // name of this test suite, e.g., 'entry'
+                });
+            });
         });
         if (moreTests) { moreTests(); }
     });
@@ -232,5 +233,5 @@ describe('kilroy', function () {
             expect(getData().objectIdtag).toBe(firstData.objectIdtag);
             console.log('test data', firstData, secondData, thirdData);
         });
-    }, secondData);
+    }, secondData, 1, 'entry');
 });
