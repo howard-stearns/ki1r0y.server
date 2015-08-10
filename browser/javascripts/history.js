@@ -251,7 +251,6 @@ function addHistory(objectIdtag, timestamp, nametag, action, idvtag, suppressMes
 // which can't be done until the scene is ready and SCENE_mumble/OBJECT_mumble globals are set.
 var pendingHistory = null;
 function addPendingHistory() {
-    console.log('FIXME addPendingHistory pending:', pendingHistory, 'user:', peopleURL(USER.idtag), 'author:', document.getElementById('sceneUserNametag').href);
 	if (!pendingHistory) { return; } // not ready to do this yet.
 	if (peopleURL(USER.idtag) !== document.getElementById('sceneUserNametag').href) { // don't show history of other people's scenes.
 		pendingHistory = null;
@@ -296,6 +295,5 @@ function addPendingHistory() {
 function historyData(json) { // from plugin
 	if (location.pathname.match(/\/people/)) { return; } // No initial history for people, only scenes
 	pendingHistory = JSON.parse(json);
-    console.log('FIXME historyData', pendingHistory);
 	if (SCENE.nametag) { addPendingHistory(); }
 }
