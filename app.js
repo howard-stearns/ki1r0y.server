@@ -226,7 +226,7 @@ app.put('/media/:id', authorize, singleFileUpload, routes.uploadMedia); // Note 
 app.delete('/:collection/:id.:ext', authorize, routes.delete); // For testing.  //FIXME: auth if xxxIdtag.author is req.userIdtag
 // No corresponding get (hence post, not put)
 app.post('/pRefs/:id.json', authorize, routes.uploadRefs); // FIXME: what auth?
-app.post('/fbusr/:id.json', authorize, routes.updateUser); //FIXME: auth if :id is req.user.idtag
+app.post('/fbusr/:id.json', /*FIXME authorize, */routes.updateUser); //FIXME: auth if :id is req.user.idtag
 
 
 // If we get this far, nothing has picked up the request. Give a 404 error to the error handler.
