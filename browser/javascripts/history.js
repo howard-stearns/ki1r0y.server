@@ -252,10 +252,6 @@ function addHistory(objectIdtag, timestamp, nametag, action, idvtag, suppressMes
 var pendingHistory = null;
 function addPendingHistory() {
     if (!pendingHistory) { return; } // not ready to do this yet.
-    if (peopleURL(USER.idtag) !== document.getElementById('sceneUserNametag').href) { // don't show history of other people's scenes.
-        pendingHistory = null;
-        return;
-    }
     // When jumping from one scene to another (e.g., from search results),
     // we will receive the history of the new scene, and we could add it to the history
     // here. Right now we do not. The thinking is that if someone starts a session
@@ -270,6 +266,9 @@ function addPendingHistory() {
 
     var timestamps = Object.keys(pendingHistory), tIndex = 0;
     timestamps.sort();
+    if (peopleURL(USER.idtag) !== document.getElementById('sceneUserNametag').href) { // don't show history of other people's scenes.
+        timestamps = timestamps.slice(0, 1);
+    }
     // Do this asynchronously so as to not slow the user down.
     var doNextTimestamp = function () {
         if (tIndex >= timestamps.length) { // all done
