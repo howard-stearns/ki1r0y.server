@@ -106,7 +106,7 @@ router.scene = function (req, res, next) {
         // Note that the generic openGraph (og) metadata is supposed to be stable. Crawlers can and do cache it.
         // For mutable objects, we give current metadata (e.g., thumbnails), not the metadata that may have been 
         // in play some time back in an earlier version. 
-        obj.fbAppId = req.app.locals.fbAppId;
+        obj.fbAppId = (req.hostname === 'localhost') ? '' : req.app.locals.fbAppId;
         obj.canonicalUrl = base + url.parse(req.url).pathname; // No query part.
         obj.thumbnailUrl = base + '/thumb/' + obj.idvtag + '.png';
         obj.authorUrl = base + '/people/' + obj.userIdtag;
