@@ -77,44 +77,44 @@ var sceneReady, sayOnce, clearOnce, sendUnity, showSocial, updateLinksStyles, so
 
 var ScenePrefix = '?fb_ref=public__';
 function kilroyURL(sceneIdtag, objectIdtag) {
-	var base = location.origin; // Facebook wants absolute URLs everywhere.
-	if (!objectIdtag || (objectIdtag === sceneIdtag)) { return base + '/places/' + sceneIdtag; }
-	base += '/things/' + objectIdtag;
-	return sceneIdtag ? base + ScenePrefix + sceneIdtag : base;
+    var base = location.origin; // Facebook wants absolute URLs everywhere.
+    if (!objectIdtag || (objectIdtag === sceneIdtag)) { return base + '/places/' + sceneIdtag; }
+    base += '/things/' + objectIdtag;
+    return sceneIdtag ? base + ScenePrefix + sceneIdtag : base;
 }
 function peopleURL(idtag) {
-	return location.origin + '/people/' + idtag;
+    return location.origin + '/people/' + idtag;
 }
 function thumbnailURL(idvtag) {
-	return location.origin + '/thumb/' + idvtag + '.png';
+    return location.origin + '/thumb/' + idvtag + '.png';
 }
 function addTimestamp(url, timestamp) {
-	return url + (_.contains(url, '?') ? '&' : '?') + 'version=' + timestamp;
+    return url + (_.contains(url, '?') ? '&' : '?') + 'version=' + timestamp;
 }
 function removeChildren(node) {
-	while (node.hasChildNodes()) { node.removeChild(node.lastChild); }
+    while (node.hasChildNodes()) { node.removeChild(node.lastChild); }
 }
 
 window.onpopstate = function (event) {
-	console.log('onpopstate state:', event.state, 'SCENE.nametag:', SCENE.nametag, 'SCENE.timestamp:', SCENE.timestamp, 'location:', location);
-	if (!event.state && !SCENE.nametag) { return; } // webkit (safari/chrome) calls with null values on startup.
-	var state = event.state;
-	if (state) {
-		document.title = state.title;
-		// FIXME: combine this with softJump
-		if (state.timestamp && (state.timestamp !== SCENE.timestamp)) {
-			var spec = state.objectPath
-				? state.timestamp + ':' + state.objectPath
-				: state.timestamp + ':' + SCENE.idtag + ':' + state.objectIdtag;
-			sendUnity('Avatar', 'RestoreSceneBack', spec);
-		} else {
-			sendUnity('Avatar', 'GoBackTo', state.objectPath || state.objectIdtag);
-		}
-	} else {   //- Popping back to first entry. Let's hope the location.href is right.
-		softJump(location.pathname, location.search, 'GoBackTo');
-		document.title = document.getElementById('ogTitle').getAttribute('content'); // not set by GoBackTo, so grab from element
-	}
-	clearOnce('undo');
+    console.log('onpopstate state:', event.state, 'SCENE.nametag:', SCENE.nametag, 'SCENE.timestamp:', SCENE.timestamp, 'location:', location);
+    if (!event.state && !SCENE.nametag) { return; } // webkit (safari/chrome) calls with null values on startup.
+    var state = event.state;
+    if (state) {
+        document.title = state.title;
+        // FIXME: combine this with softJump
+        if (state.timestamp && (state.timestamp !== SCENE.timestamp)) {
+            var spec = state.objectPath
+                ? state.timestamp + ':' + state.objectPath
+                : state.timestamp + ':' + SCENE.idtag + ':' + state.objectIdtag;
+            sendUnity('Avatar', 'RestoreSceneBack', spec);
+        } else {
+            sendUnity('Avatar', 'GoBackTo', state.objectPath || state.objectIdtag);
+        }
+    } else {   //- Popping back to first entry. Let's hope the location.href is right.
+        softJump(location.pathname, location.search, 'GoBackTo');
+        document.title = document.getElementById('ogTitle').getAttribute('content'); // not set by GoBackTo, so grab from element
+    }
+    clearOnce('undo');
 };
 
 // Create search/history result row from object d. Expected properties are:
@@ -123,177 +123,177 @@ window.onpopstate = function (event) {
 // optional objectNametag, objectIdtag
 // and either action (if history) or userIdtag (if search)
 function resultRow(d, isHistory) {
-	//console.log('resultRow', (isHistory ? 'history' : 'search'), d);
-	var row = document.createElement('tr');
-	var makeElt = function (tag, attributes, optionalContents) {
-		var attribute, val, elt = document.createElement(tag);
-		for (attribute in attributes) {
-			val = attributes[attribute];
-			if (val === undefined) { continue; }
-			if (attribute.match(/^on.*/)) {
-				elt[attribute] = val; // because that's how it works
-			} else {
-				elt.setAttribute(attribute, val);
-			}
-		}
-		if (optionalContents) {
-			elt.appendChild(typeof optionalContents === 'string'
-							? document.createTextNode(optionalContents)
-							: optionalContents);
-		}
-		return elt;
-	};
-	var addCell = function (tag, attributes, optionalContents, optionalCustomKey) {
-		var td = document.createElement('td'), elt = makeElt(tag, attributes, optionalContents);
-		if (optionalCustomKey) { td.setAttribute('sorttable_customkey', optionalCustomKey); }
-		td.appendChild(elt);
-		row.appendChild(td);
-		return elt;
-	};
-	var addThumbnail = function (name, url, thumb, description, sceneExtension) {
-		var title = 'Show social information without visiting.';
-		if (description) { title += ' ' + description; }
-		return addCell('img', {
-			src: thumb,
-			height: '50px',
-			draggable: true,
-			onclick: function () { showSocial(name, url, description, sceneExtension && (url + sceneExtension)); },
-			ondragstart: function (e) { e.dataTransfer.setData(kilroyMime, url); },
-			title: title
-		});
-	};
-	var addLink = function (name, url, qualifier, optionalObjectPath) {
-		return url ? addCell('a', {
-			class: "kilroyLink",
-			href: url,
-			title: 'Visit ' + name + (qualifier || '') + '.',
-			kilroyObjectPath: optionalObjectPath,
-			onclick: softLink
-		}, name) : addCell('span', {}, name);
-	};
-	if (typeof d.timestamp === 'string') { d.timestamp = parseInt(d.timestamp, 10); }
-	var sceneURL = kilroyURL(d.sceneIdtag), objectURL = sceneURL;
-	if (d.objectNametag) {
-		objectURL = kilroyURL(d.sceneIdtag, d.objectIdtag);
-		var genericObjectURL = kilroyURL(null, d.objectIdtag); // without scene. But I can't remember why!
-		addThumbnail(d.objectNametag, genericObjectURL, thumbnailURL(d.idvtag), d.description, ScenePrefix + d.sceneIdtag);
-	} else {
-		addThumbnail(d.sceneNametag, sceneURL, thumbnailURL(d.idvtag), d.description);
-	}
-	addLink(d.objectNametag || '', kilroyURL(d.sceneIdtag, d.objectIdtag), ' in ' + d.sceneNametag, d.objectPath);
-	addLink(d.sceneNametag, sceneURL);
-	var dd = new Date(d.timestamp);
-	var ddString = dd.toLocaleString();
-	if (isHistory) {
-		addLink('', addTimestamp(objectURL, d.timestamp), d.sceneNametag + ' and wind it back to this time', d.objectPath).innerHTML = ddString;
-	} else {
-		addCell('span', {title: 'Last change.'}, ddString);
-	}
-	if (isHistory) {
-		addLink(d.action);
-	} else {
-		addThumbnail('<fb:name uid="' + d.userIdtag + '" linked="false"/>',
-					 peopleURL(d.userIdtag),
-					 'http://graph.facebook.com/' + d.userIdtag + '/picture',
-					 d.description);
-	}
-	return row;
+    //console.log('resultRow', (isHistory ? 'history' : 'search'), d);
+    var row = document.createElement('tr');
+    var makeElt = function (tag, attributes, optionalContents) {
+        var attribute, val, elt = document.createElement(tag);
+        for (attribute in attributes) {
+            val = attributes[attribute];
+            if (val === undefined) { continue; }
+            if (attribute.match(/^on.*/)) {
+                elt[attribute] = val; // because that's how it works
+            } else {
+                elt.setAttribute(attribute, val);
+            }
+        }
+        if (optionalContents) {
+            elt.appendChild(typeof optionalContents === 'string'
+                            ? document.createTextNode(optionalContents)
+                            : optionalContents);
+        }
+        return elt;
+    };
+    var addCell = function (tag, attributes, optionalContents, optionalCustomKey) {
+        var td = document.createElement('td'), elt = makeElt(tag, attributes, optionalContents);
+        if (optionalCustomKey) { td.setAttribute('sorttable_customkey', optionalCustomKey); }
+        td.appendChild(elt);
+        row.appendChild(td);
+        return elt;
+    };
+    var addThumbnail = function (name, url, thumb, description, sceneExtension) {
+        var title = 'Show social information without visiting.';
+        if (description) { title += ' ' + description; }
+        return addCell('img', {
+            src: thumb,
+            height: '50px',
+            draggable: true,
+            onclick: function () { showSocial(name, url, description, sceneExtension && (url + sceneExtension)); },
+            ondragstart: function (e) { e.dataTransfer.setData(kilroyMime, url); },
+            title: title
+        });
+    };
+    var addLink = function (name, url, qualifier, optionalObjectPath) {
+        return url ? addCell('a', {
+            class: "kilroyLink",
+            href: url,
+            title: 'Visit ' + name + (qualifier || '') + '.',
+            kilroyObjectPath: optionalObjectPath,
+            onclick: softLink
+        }, name) : addCell('span', {}, name);
+    };
+    if (typeof d.timestamp === 'string') { d.timestamp = parseInt(d.timestamp, 10); }
+    var sceneURL = kilroyURL(d.sceneIdtag), objectURL = sceneURL;
+    if (d.objectNametag) {
+        objectURL = kilroyURL(d.sceneIdtag, d.objectIdtag);
+        var genericObjectURL = kilroyURL(null, d.objectIdtag); // without scene. But I can't remember why!
+        addThumbnail(d.objectNametag, genericObjectURL, thumbnailURL(d.idvtag), d.description, ScenePrefix + d.sceneIdtag);
+    } else {
+        addThumbnail(d.sceneNametag, sceneURL, thumbnailURL(d.idvtag), d.description);
+    }
+    addLink(d.objectNametag || '', kilroyURL(d.sceneIdtag, d.objectIdtag), ' in ' + d.sceneNametag, d.objectPath);
+    addLink(d.sceneNametag, sceneURL);
+    var dd = new Date(d.timestamp);
+    var ddString = dd.toLocaleString();
+    if (isHistory) {
+        addLink('', addTimestamp(objectURL, d.timestamp), d.sceneNametag + ' and wind it back to this time', d.objectPath).innerHTML = ddString;
+    } else {
+        addCell('span', {title: 'Last change.'}, ddString);
+    }
+    if (isHistory) {
+        addLink(d.action);
+    } else {
+        addThumbnail('<fb:name uid="' + d.userIdtag + '" linked="false"/>',
+                     peopleURL(d.userIdtag),
+                     'http://graph.facebook.com/' + d.userIdtag + '/picture',
+                     d.description);
+    }
+    return row;
 }
 // Add d object as the last resultRow in the "related" (search) table.
 function addToRelatedTableDirectly(elt) { document.getElementById('relatedBody').appendChild(elt); }
 function addToRelatedTable(d) { addToRelatedTableDirectly(resultRow(d)); }
 function setRelated(data) { // Data is an array of objects suitable for resultRow().
-	removeChildren(document.getElementById('relatedBody'));
-	if (typeof data === 'string') { // from plugin or initial
-		data = JSON.parse(data); console.log('plugin/initial =>: setRelated', data);
-	} else if (data && data.length) { // from search 
-		logEvent('discovery', 'related', '', data.length); // FIXME: too many of these.
-		data.forEach(addToRelatedTable);
-	} else {
-		addToRelatedTableDirectly(document.createTextNode('No current results'));
-	}
-	updateLinksStyles();
+    removeChildren(document.getElementById('relatedBody'));
+    if (typeof data === 'string') { // from plugin or initial
+        data = JSON.parse(data); console.log('plugin/initial =>: setRelated', data);
+    } else if (data && data.length) { // from search 
+        logEvent('discovery', 'related', '', data.length); // FIXME: too many of these.
+        data.forEach(addToRelatedTable);
+    } else {
+        addToRelatedTableDirectly(document.createTextNode('No current results'));
+    }
+    updateLinksStyles();
 }
 // Add properties as the first (most recent) resultRow in the histor table.
 function addToHistoryTable(objectIdtag, timestamp, nametag, action, idvtag, objectPath) {
-	// It's handy to be able to pass scene info explicitly if we know, otherwise:
-	var sceneIdtag = SCENE.idtag;
-	var sceneNametag = SCENE.nametag;
-	var tbody = document.getElementById('historyBody');
-	var data = {timestamp: timestamp, action: action, sceneNametag: sceneNametag, sceneIdtag: sceneIdtag, idvtag: idvtag, objectPath: objectPath};
-	if (objectIdtag !== sceneIdtag) {   // no object data for scenes
-		data.objectIdtag = objectIdtag;
-		data.objectNametag = nametag;
-	}
-	tbody.insertBefore(resultRow(data, true), tbody.firstChild);
+    // It's handy to be able to pass scene info explicitly if we know, otherwise:
+    var sceneIdtag = SCENE.idtag;
+    var sceneNametag = SCENE.nametag;
+    var tbody = document.getElementById('historyBody');
+    var data = {timestamp: timestamp, action: action, sceneNametag: sceneNametag, sceneIdtag: sceneIdtag, idvtag: idvtag, objectPath: objectPath};
+    if (objectIdtag !== sceneIdtag) {   // no object data for scenes
+        data.objectIdtag = objectIdtag;
+        data.objectNametag = nametag;
+    }
+    tbody.insertBefore(resultRow(data, true), tbody.firstChild);
 }
 // Add properties to both browser history and the history table.
 function addHistory(objectIdtag, timestamp, nametag, action, idvtag, suppressMessage, objectPath) {
-	//console.log('addHistory', objectIdtag, timestamp, nametag, action, idvtag, suppressMessage);
-	var scenePath = kilroyURL(SCENE.idtag, objectIdtag);
-	var path = addTimestamp(scenePath, timestamp);
-	var title = action ? action + ' ' : '';
-	var name = nametag || SCENE.nametag;	
-	title += name;
-	var state = {objectIdtag: objectIdtag, timestamp: timestamp, title: name, objectPath: objectPath};
-	if (!suppressMessage) {
-		sayOnce('You can use the browser back button to "undo".', 'undo');
-	}
-	// The third (url) argument to pushState is optional, but if we don't include it:
-	// 1. Browser histories that show entries only url will just have the last state.
-	// 2. Cut+paste of browser url won't get us back to "here".
-	document.title = name;
-	history.pushState(state, title, path); // some browser might present useful distinctions for title. Others will force matching of document.title.
-	addToHistoryTable(objectIdtag, timestamp, nametag, action || 'go', idvtag, objectPath);
+    //console.log('addHistory', objectIdtag, timestamp, nametag, action, idvtag, suppressMessage);
+    var scenePath = kilroyURL(SCENE.idtag, objectIdtag);
+    var path = addTimestamp(scenePath, timestamp);
+    var title = action ? action + ' ' : '';
+    var name = nametag || SCENE.nametag;    
+    title += name;
+    var state = {objectIdtag: objectIdtag, timestamp: timestamp, title: name, objectPath: objectPath};
+    if (!suppressMessage) {
+        sayOnce('You can use the browser back button to "undo".', 'undo');
+    }
+    // The third (url) argument to pushState is optional, but if we don't include it:
+    // 1. Browser histories that show entries only url will just have the last state.
+    // 2. Cut+paste of browser url won't get us back to "here".
+    document.title = name;
+    history.pushState(state, title, path); // some browser might present useful distinctions for title. Others will force matching of document.title.
+    addToHistoryTable(objectIdtag, timestamp, nametag, action || 'go', idvtag, objectPath);
 }
 // We don't know whether addPendingHistory or historyData will be called first.
 // historyData sets the initial (past session) history, while addPendingHistory actually commits it,
 // which can't be done until the scene is ready and SCENE_mumble/OBJECT_mumble globals are set.
 var pendingHistory = null;
 function addPendingHistory() {
-	if (!pendingHistory) { return; } // not ready to do this yet.
-	if (peopleURL(USER.idtag) !== document.getElementById('sceneUserNametag').href) { // don't show history of other people's scenes.
-		pendingHistory = null;
-		return;
-	}
-	// When jumping from one scene to another (e.g., from search results),
-	// we will receive the history of the new scene, and we could add it to the history
-	// here. Right now we do not. The thinking is that if someone starts a session
-	// (e.g., following a link from some external page or app), it's nice to give
-	// them the history of the place they were, giving people a nice cozy sense
-	// of being able to undo things. But from that point on in the session, it 
-	// should really just what the user does now, rather than inserting historical things
-	// into between stuff that the user did this session. Note that the user can always
-	// reload mid-session, which has the effect of starting a new session with a new browser
-	// history, and thus getting the older-session history for the current scene.
-	if (window.history.state) { return; }
+    if (!pendingHistory) { return; } // not ready to do this yet.
+    if (peopleURL(USER.idtag) !== document.getElementById('sceneUserNametag').href) { // don't show history of other people's scenes.
+        pendingHistory = null;
+        return;
+    }
+    // When jumping from one scene to another (e.g., from search results),
+    // we will receive the history of the new scene, and we could add it to the history
+    // here. Right now we do not. The thinking is that if someone starts a session
+    // (e.g., following a link from some external page or app), it's nice to give
+    // them the history of the place they were, giving people a nice cozy sense
+    // of being able to undo things. But from that point on in the session, it 
+    // should really just what the user does now, rather than inserting historical things
+    // into between stuff that the user did this session. Note that the user can always
+    // reload mid-session, which has the effect of starting a new session with a new browser
+    // history, and thus getting the older-session history for the current scene.
+    if (window.history.state) { return; }
 
-	var timestamps = Object.keys(pendingHistory), tIndex = 0;
-	timestamps.sort();
-	// Do this asynchronously so as to not slow the user down.
-	var doNextTimestamp = function () {
-		if (tIndex >= timestamps.length) { // all done
-			updateLinksStyles();
-			pendingHistory = null;
-		} else {
-			var timestamp = timestamps[tIndex++];
-			var idvtag = pendingHistory[timestamp];
-			var now = idvtag === SCENE.idvtag;
-			var idtag = now ? THING.idtag || SCENE.idtag : SCENE.idtag;
-			var isNowObject = now && THING.idtag && ((THING.idtag !== SCENE.idtag) || (THING.idtag.length !== 27));
-			var nametag = now ? THING.nametag : '';
-			//console.log('adding', timestamp, idvtag, now, idtag, nametag, isNowObject, THING.idtag, SCENE.idtag, tIndex, 'of', timestamps.length);
-			addHistory(idtag, timestamp, nametag,
-					   now ? 'entry' : 'older',
-					   isNowObject ? idtag : idvtag,
-					   'no message');
-			setTimeout(doNextTimestamp, 20);
-		}
-	};
-	doNextTimestamp();
+    var timestamps = Object.keys(pendingHistory), tIndex = 0;
+    timestamps.sort();
+    // Do this asynchronously so as to not slow the user down.
+    var doNextTimestamp = function () {
+        if (tIndex >= timestamps.length) { // all done
+            updateLinksStyles();
+            pendingHistory = null;
+        } else {
+            var timestamp = timestamps[tIndex++];
+            var idvtag = pendingHistory[timestamp];
+            var now = idvtag === SCENE.idvtag;
+            var idtag = now ? THING.idtag || SCENE.idtag : SCENE.idtag;
+            var isNowObject = now && THING.idtag && ((THING.idtag !== SCENE.idtag) || (THING.idtag.length !== 27));
+            var nametag = now ? THING.nametag : '';
+            //console.log('adding', timestamp, idvtag, now, idtag, nametag, isNowObject, THING.idtag, SCENE.idtag, tIndex, 'of', timestamps.length);
+            addHistory(idtag, timestamp, nametag,
+                       now ? 'entry' : 'older',
+                       isNowObject ? idtag : idvtag,
+                       'no message');
+            setTimeout(doNextTimestamp, 20);
+        }
+    };
+    doNextTimestamp();
 }
 function historyData(json) { // from plugin
-	if (location.pathname.match(/\/people/)) { return; } // No initial history for people, only scenes
-	pendingHistory = JSON.parse(json);
-	if (SCENE.nametag) { addPendingHistory(); }
+    if (location.pathname.match(/\/people/)) { return; } // No initial history for people, only scenes
+    pendingHistory = JSON.parse(json);
+    if (SCENE.nametag) { addPendingHistory(); }
 }
