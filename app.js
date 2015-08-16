@@ -116,13 +116,13 @@ var fakeJson = [
 app.post('/place/:id', fakeJson, routes.uploadPlace);
 app.post('/thing/:id', fakeJson, routes.uploadObject);
 app.post('/refs/:id', fakeJson, routes.uploadRefs); // Old name for pRefs.
-app.post('/thumb/:id', routes.uploadThumbnail);
-app.post('/media/:id', routes.uploadMedia);
-
-// These aren't needed for any of the above.
 app.use(bodyParser.json()); // Our put/post data 
 var upload = multer({dest: path.resolve(__dirname, '../uploads/')});
 var singleFileUpload = upload.single('fileUpload'); // route converts 'fileUpload' form field to req.file (an object with 'path' property), and adds any text fields to req.body
+app.post('/thumb/:id', singleFileUpload, routes.uploadThumbnail);
+app.post('/media/:id', singleFileUpload, routes.uploadMedia);
+
+// These aren't needed for any of the above.
 // FIXME: The default server-side cookie implementation leaks memory.
 app.use(session({ // Create/parse session cookies to make authorization more efficient.
     secret: secret('COOKIE_SIGNER'),
