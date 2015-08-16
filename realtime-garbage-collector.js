@@ -179,11 +179,14 @@ exports.pingPong = function (base, delay) {
             var done = function (err) {
                 progress = progress || {};
                 var stats = { // An object recognized by our standard logger.
-                    url: '/gc?' + querystring.encode(progress || {}),
                     startTime: progress.startTime,
                     runtime: progress && progress.totalTime
                 };
+                delete progress.startTime; // occassionally useful, but kills readability and we have the data in stats.
+                delete progress.totalTime;
+                stats.url = '/gc?' + querystring.encode(progress || {});
                 inProgress = false;
+                error = error || err;
                 if (error) {
                     stats.url += '&errno=' + error.errno + '&code=' + error.code + '&error=' + error.message;
                     stats.statusCode = 500;
