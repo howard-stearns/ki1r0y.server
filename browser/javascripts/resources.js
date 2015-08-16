@@ -61,22 +61,13 @@ function makeOnload(xmlhttp, callback) { // if callback, assign an onload handle
         callback(!ok && request.statusText, ok && JSON.parse(xmlhttp.responseText));
     };
 }
-// Converts an object's property:value pairs into a URL query string.
-function queryString(paramsObject) {
-    var paramString = '', key;
-    for (key in paramsObject) {
-        if (paramString !== '') { paramString += '&'; }
-        paramString += key + '=' + encodeURIComponent(paramsObject[key]);
-    }
-    return paramString;
-}
 // Posts a paramsObject (map of params to values) to the given url.
 function post(url, paramsObject, optionalCallback) {
     var xmlhttp = request();
     makeOnload(xmlhttp, optionalCallback);
     xmlhttp.open("POST", url, true);
-    xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    var paramString = queryString(paramsObject);
+    xmlhttp.setRequestHeader("Content-type", "application/json");
+    var paramString = JSON.stringify(paramsObject);
     xmlhttp.send(paramString);
 }
 // Get a kilroy resource.
