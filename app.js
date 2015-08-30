@@ -249,7 +249,9 @@ app.use(function (err, req, res, next) {
     });
 });
 
-require('./realtime-garbage-collector').pingPong(app.get('dbdir'), 2000);
-var server = require('http').createServer(app);
-chat.setup(socketio(server), logUser);
-server.listen(3000);
+require('./realtime-garbage-collector').pingPong(app.get('dbdir'), 2000, function (e) {
+    if (e) { throw e; }
+    var server = require('http').createServer(app);
+    chat.setup(socketio(server), logUser);
+    server.listen(3000);
+});

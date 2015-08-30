@@ -1,6 +1,6 @@
 {
   "name": "ki1r0y.server",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "An experimental object server.",
   "main": "app.js",
@@ -35,13 +35,14 @@
     "test/kilroy-21-reduced.png"
   ],
   "dependencies": {
+    "async": "^1.0.0",
     "body-parser": "~1.12.0",
     "debug": "~2.1.1",
     "express": "~4.12.0",
     "express-session": "^1.11.3",
     "fs-extra": "^0.17.0",
     "jade": "~1.9.2",
-    "ki1r0y.lock": "^1.0.4",
+    "ki1r0y.fs-store": "^1.0.2",
     "morgan": "~1.5.1",
     "multer": "~1.0.3",
     "passport": "^0.2.2",
@@ -53,7 +54,6 @@
     "underscore": "^1.8.2"
   },
   "devDependencies": {
-    "async": "^1.0.0",
     "cheerio": "^0.18.0",
     "mocha": "^2.2.1",
     "request": "^2.53.0",

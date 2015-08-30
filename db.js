@@ -5,22 +5,18 @@
 // Currently just the start of such.
 // TODO: redefine all the fs operations in index|people|garbageCollection to use operations defined here.
 
-var fs = require('fs-extra');
 var path = require('path');
 var util = require('util');
 var async = require('async');
 var _ = require('underscore');
-var lock = require('ki1r0y.lock').lock;
+var fs = require('fs-extra'); // fixme remove? Also check other files and see if we can remove from package.json
+var store = require('ki1r0y.fs-store');
 var pseudo = require('./pseudo-request');
 
-// Alas, fs.truncate doesn't create new file on Amazon linux.
-function touch(path, cb) { fs.open(path, 'w', function (e, fd) { if (e) { cb(e); } else { fs.close(fd, cb); } }); }
-
-function isNoFile(error) { return error && (error.code === 'ENOENT'); } // predicate true if error indicates missing file
 //function isPlace(idtag) { return idtag.length !== 40; } // predicate true if idtag is for a place (a mutable, versioned thing)
 function isPlace(idtag) { return (idtag.length === 37) || (idtag.length === 28) || (idtag.length === 41); } // FIXME: transition hack: 37=MS-GUID, 27=sha1/base64-=, 40=sha1/hex
 
-var root;
+var root; // set by initialize();
 // These all answer falsey if no arg.
 function dbFile(key, base, ext) { return key ? path.resolve(root, base, key) + (ext || '') : ''; } // internal helper
 function newspaceDir(oldspace) { return oldspace + '2'; }
@@ -53,100 +49,19 @@ function citationsFile(word) { // answer pathname for the list of idtags that ci
 exports.idFile = idFile;
 exports.userFile = userFile;
 
-function writeLockFile(path, data, cb) { // Like fs.writeFile within a lock.
-    lock(path, function (unlock) {
-        fs.writeFile(path, data, function (e, d) { unlock(); cb(e, d); });
-    });
-}
-function readLockFile(path, cb) { // Like fs.readFile within a lock.
-    // Would we gain anything by allowing simultaneous overlapping reads as long as there is no write?
-    // (See QT's QReadWriteLock.lockForRead. Note that a waiting write lock must take precedence over newly waiting readers.)
-    lock(path, function (unlock) {
-        fs.readFile(path, function (e, d) { unlock(); cb(e, d); });
-    });
-}
-function safeJson(string) {
-    try { return JSON.parse(string); } catch (e) { return e; }
-}
-
-
-// Asynchronously calls transformer(contentString, writerFunction) on the contents of path,
-// where contentString may be an empty string. The transformer should in turn call
-// writerFunction(error, newContentString, optionalResult), which will leave newContentString as the sole
-// content of the file unless newContentString is undefined, in which case no change is made.
-// If path does not exist and noFileValue is supplied, it is used as the optionalResult without calling transformer or making the file.
-// Finally, callback(error, optionalResult) is called.
-// While this function does not block, callback won't happen until atomicChange is able to 
-// get exclusive access to path. 
-function atomicChange(path, transformer, callback, noFileValue) {
-    lock(path, function (unlock) {
-        fs.readFile(path, function (eRead, contentString) {
-            var cb = function (error, optionalResult) {
-                unlock();
-                callback(error, optionalResult);
-            };
-            var writerFunction = function (error, newContentString, optionalResult) {
-                if (error) {
-                    cb(error);
-                } else if (newContentString === undefined) {
-                    cb(null, optionalResult);
-                } else {
-                    fs.writeFile(path, newContentString, function (e) { cb(e, optionalResult); });
-                }
-            };
-            if (isNoFile(eRead)) {
-                if (noFileValue !== undefined) {
-                    cb(null, noFileValue);
-                } else {
-                    transformer('', writerFunction);
-                }
-            } else if (eRead) {
-                cb(eRead);
-            } else {
-                transformer(contentString, writerFunction);
-            }
-        });
-    });
-}
 
 // Add idtag to the data in recordId IFF it is not already present, and creating record if needed.
 // Then call optionalCallback with any error.
 function pushIfNew(recordId, idtag, callback) {
     if (!recordId) { return callback(null); }
-    atomicChange(recordId, function (dataString, writerFunction) {
-        var data;
-        if (dataString) {
-            data = safeJson(dataString);
-            if (util.isError(data)) { return writerFunction(data); } // Shouldn't happen!
-            if (data.indexOf(idtag) < 0) {
-                data.push(idtag);
-            } else { // no need to update
-                return writerFunction();
-            }
-        } else {
-            data = [idtag];
+    store.update(recordId, [], function (data, writerFunction) {
+        if (data.indexOf(idtag) >= 0) {
+            return writerFunction(); // no need to update
         }
-        writerFunction(null, JSON.stringify(data));
+        data.push(idtag);
+        writerFunction(null, data);
     }, callback);
 }
-
-// Notes on file modification times:
-// We originally defined creation and modification dates are defined by the server storage system, because:
-// 1. express.static uses this for last-modified header (when using cache-control)
-// 2. It's much less complicated than trying to handle modification time within the
-//    uploaded client data, but not within the hash used to tell if something has
-//    really changed.
-// 3. It's unnecessary data for uploading.
-// 4. We know the time is right because it's determined by server instead of client.
-// But there are drawbacks:
-// 1. We have a moving data garbage collector, so we have to use shell touch to preserve. 
-//    That's probably doesn't scale.
-// 2. This is not preserved by: git checkout -- db
-// 3. The file modification time won't match the version timestamp set by the plugin during saving.
-// 
-// We didn't display creation time because there is no standard way
-// to get it. stat.ctime is inode change time (which is useless). Darwin does
-// report creation time with ls -lU, but it doesn't show up in nodejs fs stat.
 
 /********* OBJECTS **************/
 // Answer an object with the fully resolved information about idtag (which must be for a place or thing).
@@ -154,13 +69,8 @@ function pushIfNew(recordId, idtag, callback) {
 // determine whether sceneIdtag/sceneNametag vs objectIdtag/objectNametag should be set (and the other left blank).
 function resolve(idtag, isScene, callback, originalIdtag, created) {
     var dbPathname = idFile(idtag);
-    async.parallel([
-        function (cb) { fs.stat(dbPathname, cb); },
-        function (cb) { readLockFile(dbPathname, cb); }
-    ], function (err, results) {
+    store.getWithModificationTime(dbPathname, function (err, obj, mtime) {
         if (err) { return callback(err); }
-        var mtime = results[0].mtime;
-        var obj = JSON.parse(results[1]);
         if (obj.idvtag) {  // The request is for a generic place.
             resolve(obj.idvtag, isScene, callback, idtag, mtime.getTime().toString());
         } else {
@@ -193,9 +103,9 @@ var addCitations, markMaterials; //forward references
 function update(idvtag, data, flag, callback) {
     if (!data) { return callback(new Error("Update of " + idvtag + " with no data, flag=" + flag)); }
     var path = idFile(idvtag);
-    writeLockFile(path, JSON.stringify(data), function (eWrite) { // locked against gc sweep of path
+    store.set(path, data, function (eWrite) { // locked against gc sweep of path
         if (eWrite) { return callback(eWrite); }
-        touch(newspaceFile(path), function (eTouch) {
+        store.ensure(newspaceFile(path), function (eTouch) {
             if (eTouch) { return callback(eTouch); }
             // Materials were already uploaded, possibly in an earlier generation of the gc, so must be re-marked.
             markMaterials(data.materials || [], function (eMat) {
@@ -239,16 +149,16 @@ function remove(idtag, collection, ext, cb) { // delete the specified object fro
     default:
         return cb(new Error("Unknown collection " + collection));
     }
-    fs.unlink(pathname, cb); // Not a pretty error, but this is supposed to be require access control, so the error should be meaningful for us.
+    store.destroy(pathname, cb); // Not a pretty error, but this is supposed to be require access control, so the error should be meaningful for us.
 }
 exports.remove = remove;
 
 // Like resolve, but for an array of idtags, which must all be scenes.
 function resolveScenes(sceneIdtags, callback) {
     var eachScene = function (idtag, cb) {
-        readLockFile(idFile(idtag), function (err, json) {
+        store.get(idFile(idtag), function (err, obj) {
             // No sense killing everything on err. Just give blank data. E.g., delete a scene that appears in obj's refs.
-            var obj = (err || !json) ? {versions: {}} : JSON.parse(json);
+            if (err) { obj = {versions: {}}; }
             var timestamps = Object.keys(obj.versions);
             obj.timestamp = timestamps.length && timestamps[timestamps.length - 1];
             // compatability with old names:
@@ -270,9 +180,8 @@ function resolveScenes(sceneIdtags, callback) {
 // Like resolve, but for user data, which isn't the same set of properties.
 // Trevor is "100004567501627". Howard is "100000015148499".
 function resolveUser(idtag, callback) {
-    readLockFile(userFile(idtag), function (err, json) {
+    store.get(userFile(idtag), function (err, obj) {
         if (err) { return callback(err); }
-        var obj = JSON.parse(json);
         obj.nametags = [obj.nametag, obj.firstname, obj.lastname];
         obj.userIdtag = idtag;
         callback(null, obj);
@@ -280,11 +189,8 @@ function resolveUser(idtag, callback) {
 }
 function updateUser(userIdtag, userData, callback) {
     var path = userFile(userIdtag);
-    atomicChange(path, function (existingString, writerFunction) {
-        var data;
-        if (existingString) {
-            data = JSON.parse(existingString);
-        } else {
+    store.update(path, undefined, function (data, writerFunction) {
+        if (!data) {
             pseudo.info('/pseudoOp/newUser?name=' + encodeURIComponent(userData.username || 'null') + '&id=' + userIdtag);
             data = {};
         }
@@ -301,29 +207,24 @@ function updateUser(userIdtag, userData, callback) {
             if (index >= 0) { data.scenes.splice(index, 1); }
         }
         var lastIndex = data.scenes.indexOf(userData.scene);
-        if (lastIndex >= 0) {
+        if (lastIndex >= 0) { // If already known to be one of mine, put it up front.
             var newLead = data.scenes.splice(lastIndex, 1);
             data.scenes = newLead.concat(data.scenes);
-        } else if (userData.isMine) {
+        } else if (userData.isMine) { // Otherwise, if marked so, make it one of mine.
+            // Note that this will list it with mine and keep it from being GC'd, but
+            // will not actually make me author.
             data.scenes.unshift(userData.scene);
         }
-        writerFunction(null, JSON.stringify(data), data);
+        writerFunction(null, data, data);
     }, callback);
 }
 // Calls iterator(userObject, cb, userIdtag) on each user's data. iterator must call cb(err) to continue.
 // finalCallbac(err) is called on error or when all cb have been used.
 function iterateUsers(iterator, finalCallback) {
     var dir = path.resolve(root, 'mutable/people');
-    fs.readdir(dir, function (err, userFiles) {
-        if (err) { return finalCallback(err); }
-        function eachIdtag(userFile, cb) {
-            readLockFile(path.resolve(dir, userFile), function (err, json) {
-                if (err) { return cb(err); }
-                iterator(JSON.parse(json), cb, userFile);
-            });
-        }
-        async.eachSeries(userFiles, eachIdtag, finalCallback);
-    });
+    store.iterateDocuments(dir, function (user, userIdtag, icb) {
+        iterator(user, icb, userIdtag);
+    }, finalCallback);
 }
 
 ////// REFS ////////
@@ -333,10 +234,10 @@ function addReference(idtag, sceneIdtag, callback) { // add sceneIdtag to the li
 // answer the list of scenes that use this object (which must be a place or thing idtag, not a place's idvtag)
 function referringScenes(objectIdtag, callback) {
     // Would it be worth it to rewrite the refs file if there are scenes that have no data (i.e., have been deleted)?
-    readLockFile(refsFile(objectIdtag), function (err, refsSerialization) {
+    store.get(refsFile(objectIdtag), function (err, refsSerialization) {
         // Not sure this is the right thing in general, but scenes should refer to themselves.
-        if (isNoFile(err)) { return callback(null, [objectIdtag]); }
-        callback(err, !err && JSON.parse(refsSerialization));
+        if (store.doesNotExist(err)) { return callback(null, [objectIdtag]); }
+        callback(err, refsSerialization);
     });
 }
 exports.resolve = resolve;
@@ -378,26 +279,25 @@ exports.addCitations = addCitations;
 function citationsOf(word, callback) {
     var file = citationsFile(word);
     if (!file) { return callback(null, []); }
-    atomicChange(file, function (citationsBuffer, writerFunction) {
+    store.update(file, [], function (citations, writerFunction) {
         // Filter the citations to include only idtags that still exist.
-        var citations = JSON.parse(citationsBuffer); // just the idtags
         // It is possible that an old immutable used this word and has since been garbage collected,
-        // and yet the original author recreates the same object during async.filter and fs.exists.
+        // and yet the original author recreates the same object during async.filter and store.exists.
         // The newly (re-)written immutable will not appear in the citation results, which is ok.
         // More importantly, though, the new citation will cause the citationsFile to be rewritten,
-        // which can't occur until this atomicChange completes.
+        // which can't occur until this store.update completes.
         /* This version only checks the idFile, not what it points to:
            var paths = citations.map(idFile); // as pathnames
-           async.filter(paths, fs.exists, function (filteredPaths) {*/
+           async.filter(paths, store.exists, function (filteredPaths) {*/
         // This version checks deeper
         var check = function (id, cb) {
             var path = idFile(id);
             if (!isPlace(id)) {
-                fs.exists(path, cb);
+                store.exists(path, cb);
             } else {
-                readLockFile(path, function (e, r) { // check place and current version
+                store.get(path, function (e, r) { // check place and current version
                     if (e) { return cb(false); }
-                    fs.exists(idFile(JSON.parse(r).idvtag), cb);
+                    store.exists(idFile(r.idvtag), cb);
                 });
             }
         };
@@ -406,10 +306,10 @@ function citationsOf(word, callback) {
                 writerFunction(null, undefined, citations);  // No change, but give the list to callback.
             } else {
                 var filteredCitations = filteredPaths.map(path.basename); // Re-save and callback the filtered list.
-                writerFunction(null, JSON.stringify(filteredCitations), filteredCitations);
+                writerFunction(null, filteredCitations, filteredCitations);
             }
         });
-    }, callback, []);
+    }, callback);
 }
 exports.citationsOf = citationsOf;
 
@@ -455,7 +355,7 @@ function search(text, callback) {
                 function (objcb) {
                     // The object data for the citing object idtag. This is where we get object info for the result.
                     // Instead of using objcb directly, this func suppresses error (and data) for missing files.
-                    resolve(idtag, false, function (e, r) { if (isNoFile(e)) { objcb(null, null); } else { objcb(e, r); } });
+                    resolve(idtag, false, function (e, r) { if (store.doesNotExist(e)) { objcb(null, null); } else { objcb(e, r); } });
                 }, function (refscb) {
                     // A list of scene data objects that the citing object idtag can be found in. This will form the basis of each item in our eventual answer.
                     referringScenes(idtag, function (err, relatedScenes) {
@@ -502,12 +402,12 @@ exports.search = search;
 function thumbFromPath(id, copies, path, callback) { // Copy contents of path into a thumbnail with the given ids, and callback.
     // FIXME: The multer package now supports a file object buffer property, as well as the path property we use. Passing this would avoid the readFile.
     var thumb = thumbFile(id);
-    fs.rename(path, thumb, function (err) { // No need for newspace copy. See rmStore.
+    store.rename(path, thumb, function (err) { // No need for newspace copy. See rmStore.
         if (err || !copies.length) { return callback(err); }
-        fs.readFile(thumb, function (err, data) { // read once, write many
+        store.getBuffer(thumb, function (err, data) { // read once, write many
             if (err) { return callback(err); }
             async.eachSeries(copies, function (id, cb) {
-                fs.writeFile(thumbFile(id), data, cb);
+                store.setBuffer(thumbFile(id), data, cb);
             }, callback);
         });
     });
@@ -516,8 +416,8 @@ function thumbFromPath(id, copies, path, callback) { // Copy contents of path in
 function mediaFromPath(id, sourcePath, callback) { // Copy contents of path into newspace. id must have extension.
     // Mark now, in case the object that uses it isn't uploaded until a later generation of the gc.
     var oldpath = mediaFile(id);
-    touch(newspaceFile(oldpath), function () {
-        fs.rename(sourcePath, oldpath, callback);
+    store.ensure(newspaceFile(oldpath), function () {
+        store.rename(sourcePath, oldpath, callback);
     });
 }
 function mtlName(spec) { return spec.map || spec; } // spec can be simple material name or an object with a map propert.
@@ -525,10 +425,10 @@ function markMaterials(materialsList, callback) { // Mark the list and callback(
     var count = 0; // A lot of trouble just to get an approximate count (due to interleaved writes), but it's worth it for debugging the gc
     async.eachSeries(materialsList, function (spec, cb) { // serially to avoid blowing the process stack during gc
         var newpath = newspaceFile(mediaFile(mtlName(spec)));
-        fs.exists(newpath, function (exists) {
+        store.exists(newpath, function (exists) {
             if (exists) { return cb(null); }
             count++;
-            touch(newpath, cb);
+            store.ensure(newpath, cb);
         });
     }, function (err) { callback(err, count); });
 }
@@ -561,45 +461,33 @@ exports.resolveMedia = resolveMedia;
 /********* STORES **************/
 // Maintaining directories or data sets for garbageCollection.
 
-// Asynchronously apply eachFile(file, cb) to each each file in a directory, 
-// followed by callback(error);
-function mapDir(dir, eachFile, callback) {
-    fs.readdir(dir, function (error, files) {
-        if (error) { return callback(error); }
-        // Apply a function to each file (of which there are many).
-        // Better do series or limit so as to not blow process stack.
-        //async.eachLimit(files, 50, eachFile, callback);
-        async.eachSeries(files, eachFile, callback);
+var markedDirs = ['mutable/place', 'immutable/thing', 'immutable/media']; // order matches gc querystring printing for easier reading
+function initialize(base, cb) { // Ensure that each newspace is an empty data store
+    root = base; // used by collection name functions
+    function cleanPair(oldspace, icb) {
+        var oldpath = path.resolve(base, oldspace);
+        var newpath = newspaceDir(oldpath);
+        pseudo.info('/pseudoOp/db.initialize?oldspace=' + oldspace);
+        store.ensureCollection(oldpath, function (e) {
+            if (e) { return icb(e); }
+            // wipe newpath clean
+            store.destroyCollection(newpath, function (e) {
+                if (e) { return icb(e); }
+                store.ensureCollection(newpath, icb);
+            });
+        });
+    }
+    async.each([
+        path.resolve(base, 'mutable/people'),
+        path.resolve(base, 'mutable/citation'),
+        path.resolve(base, 'mutable/refs'),
+        path.resolve(base, 'immutable/thumb')
+    ], store.ensureCollection, function (e) {
+        if (e) { return cb(e); }
+        async.each(markedDirs, cleanPair, cb);
     });
 }
 
-var markedDirs = ['mutable/place', 'immutable/thing', 'immutable/media']; // order matches gc querystring printing for easier reading
-function initialize(base) { // Ensure that each newspace is an empty data store
-    var tmp = new Date().getTime();
-    function cleandir(oldspace) {
-        var oldpath = path.resolve(root, oldspace);
-        var newpath = newspaceDir(oldpath);
-        var tmpspace = oldpath + tmp;
-        pseudo.info('/pseudoOp/db.initialize?oldspace=' + oldspace);
-        if (!fs.existsSync(oldpath)) { fs.mkdirsSync(oldpath); } // no return here, we're not done yet.
-        if (!fs.existsSync(newpath)) { return fs.mkdirsSync(newpath); }
-        fs.renameSync(newpath, tmpspace);
-        fs.mkdirsSync(newpath);
-        mapDir(tmpspace, function (f, cb) {
-            var path = dbFile(f, tmpspace);
-            fs.unlink(path, cb);
-        }, function (e) {
-            _.noop(e);
-            fs.rmdir(tmpspace, _.noop);
-        });
-    }
-    root = base;
-    fs.mkdirsSync(path.resolve(root, 'mutable/people'));
-    fs.mkdirsSync(path.resolve(root, 'mutable/citation'));
-    fs.mkdirsSync(path.resolve(root, 'mutable/refs'));
-    fs.mkdirsSync(path.resolve(root, 'immutable/thumb'));
-    markedDirs.forEach(cleandir);
-}
 function sweep(stats, callback) { // swap each oldspace path in paths, with the the corresponding newspace
     // During gc and while waiting for the asynchronous actions of sweep, new data is still being
     // written to both oldspace and newspace. That's ok, because we only sweep/delete files that
@@ -609,31 +497,27 @@ function sweep(stats, callback) { // swap each oldspace path in paths, with the 
         oldpath = path.resolve(root, oldpath);
         newpath = path.resolve(root, newpath);
         stats[labelExist] = stats[labelDeleted] = 0; // ditto
-        mapDir(oldpath, function (f, icb) {
-            var oldf = dbFile(f, oldpath);
+        store.iterateIdentifiers(oldpath, function (oldf, f, icb) {
             var newf = dbFile(f, newpath);
-            lock(oldf, function (unlock) { // against update of same file
-                var ucb = function (e) { unlock(); icb(e); };
-                fs.unlink(newf, function (e1) {
-                    if (!e1) {
-                        stats[labelExist]++;
-                        ucb(e1);
-                    } else {
-                        if (isNoFile(e1)) { e1 = null; }
-                        stats[labelDeleted]++;
-                        fs.unlink(oldf, function (e2) {
-                            if (doCheck) {
-                                fs.unlink(thumbFile(f), function (e3) {
-                                    fs.unlink(refsFile(f), function (e4) {
-                                        ucb(e1 || e2 || (!isNoFile(e3) && e3) || (!isNoFile(e4) && e4));
-                                    });
+            store.destroy(newf, function (e1) {
+                if (!e1) {
+                    stats[labelExist]++;
+                    icb(e1);
+                } else {
+                    if (store.doesNotExist(e1)) { e1 = null; }
+                    stats[labelDeleted]++;
+                    store.destroy(oldf, function (e2) {
+                        if (doCheck) {
+                            store.destroy(thumbFile(f), function (e3) {
+                                store.destroy(refsFile(f), function (e4) {
+                                    icb(e1 || e2 || (!store.doesNotExist(e3) && e3) || (!store.doesNotExist(e4) && e4));
                                 });
-                            } else {
-                                ucb(e1 || e2);
-                            }
-                        });
-                    }
-                });
+                            });
+                        } else {
+                            icb(e1 || e2);
+                        }
+                    });
+                }
             });
         }, cb);
     };
@@ -649,19 +533,19 @@ function mark(idtag, callback, forceData) {
     // Only do the work if it is not already marked. 
     // (We could skip the test for scenes (which are only ever referenced once from owner),
     //  but I assume it's not worth the complexity.)
-    fs.exists(newPath, function (exists) {
+    store.exists(newPath, function (exists) {
         if (exists && !forceData) { return callback(null, null); }
-        // It's ok if someone else snuck in and touched newPath in the time between starting fs.exists and it's callback.
+        // It's ok if someone else snuck in and touched newPath in the time between starting exists and it's callback.
         // We'll repeat some work (and the gc results accounting will be slightly inflated), but the results will still be correct.
-        readLockFile(oldPath, function (readError, json) {
+        store.get(oldPath, function (readError, obj) {
             if (readError) { return callback(readError); }
             if (!exists) {
-                touch(newPath, function (e) {
-                    callback(e, JSON.parse(json));
+                store.ensure(newPath, function (e) {
+                    callback(e, obj);
                 });
             } else {
                 // We could skip the parsing for non-scene places, because the value isn't used (except for it's truthiness).
-                callback(null, JSON.parse(json));
+                callback(null, obj);
             }
         });
     });

@@ -167,7 +167,7 @@ function collect(callback) {
 // Wait a short while after the first activity in db.
 // Then GC from db to db2. 
 // When that's done, log the results, reverse and cleanup, and repeat.
-exports.pingPong = function (base, delay) {
+exports.pingPong = function (base, delay, cb) {
     var requested = false;
     var inProgress = false;
     var ping = function () {
@@ -216,7 +216,7 @@ exports.pingPong = function (base, delay) {
     // If the gc ran successfully before, newspace/markings will be clean.
     // However, if it failed, there could be crud there that will confuse us, so 
     // make sure everything is clean at startup.
-    db.initialize(base);
+    db.initialize(base, cb);
 };
 
 //exports.collect('people/', 'db/', 'db2/', console.log);
