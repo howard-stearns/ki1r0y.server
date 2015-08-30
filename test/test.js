@@ -278,6 +278,11 @@ describe('server', function () {
                     assert.ok(_.contains(JSON.parse(data.body), idtag.place));
                 });
             });
+            page('/q/hasWord/136notawurd8517', null, function (data) {
+                it('queries for non-words do not fail', function () {
+                    assert.ok(!JSON.parse(data.body).length);
+                });
+            });
             function textSearch(id, data, isThing) {
                 var text = data.desc;
                 var query = '/q/search/' + text.toUpperCase();
@@ -295,6 +300,11 @@ describe('server', function () {
             }
             textSearch(idtag.thing, thing, true);
             textSearch(idtag.placeVersion, placeVersion);
+            page('/q/search/136notawurd8517', null, function (data) {
+                it('searches for non-words do not fail', function () {
+                    assert.ok(!JSON.parse(data.body).length);
+                });
+            });
             // FIXME: expose timeline data, too.
         });
         describe('cleanup', function () {

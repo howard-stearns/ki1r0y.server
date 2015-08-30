@@ -11,6 +11,7 @@ var async = require('async');
 var _ = require('underscore');
 var fs = require('fs-extra'); // fixme remove? Also check other files and see if we can remove from package.json
 var store = require('ki1r0y.fs-store');
+var search = require('ki1r0y.simple-search');
 var pseudo = require('./pseudo-request');
 
 //function isPlace(idtag) { return idtag.length !== 40; } // predicate true if idtag is for a place (a mutable, versioned thing)
@@ -43,12 +44,12 @@ function mediaFile(filename) { // filename must have extension
 function refsFile(idtag) { // answer pathname for the list of scenes that reference idtag
     return dbFile(idtag, 'mutable/refs');
 }
+// FIXME: needs subdirectories.
 function citationsFile(word) { // answer pathname for the list of idtags that cite the given word
-    return dbFile(word.toUpperCase(), 'mutable/citation');
+    return dbFile(word, 'mutable/citation');
 }
 exports.idFile = idFile;
 exports.userFile = userFile;
-
 
 // Add idtag to the data in recordId IFF it is not already present, and creating record if needed.
 // Then call optionalCallback with any error.
@@ -94,7 +95,7 @@ function resolve(idtag, isScene, callback, originalIdtag, created) {
         }
     });
 }
-var addCitations, markMaterials; //forward references
+var markMaterials; //forward reference
 // Store data for idvtag, with callback(err). Used for both places and things. 
 // When a place is changed, it uploads both the place and the version thing data. Both have nametag/description, but we
 // only want to add citations for places and for non-place things. (Because the citation should point back to an idtag,
@@ -112,7 +113,7 @@ function update(idvtag, data, flag, callback) {
                 if (eMat || flag) { return callback(eMat); }
                 var text = data.nametag;
                 if (data.desc) { text += ' ' + data.desc; }
-                addCitations(text, idvtag, callback);
+                search.addCitations(idvtag, text, callback);
             });
         });
     });
@@ -251,103 +252,11 @@ exports.iterateUsers = iterateUsers;
 
 /********* SEARCH **************/
 
-// Ensure that idtag is listed in the citations for word.
-// idtag is supposed to be a place or thing idtag (not a place's idvtag)
-function addCitation(word, idtag, cb) {
-    if (word) { pushIfNew(citationsFile(word), idtag, cb); } else { cb(); }
-}
-// Add citations for (each word in) whole text.
-function addCitations(text, idtag, optionalCallback) {
-    if (!text) { return optionalCallback && optionalCallback(); }
-    var seen = {}; // don't addCitation of duplicate words
-    var eachWord = function (word, cb) {
-        if (!seen[word]) {
-            seen[word] = true;
-            addCitation(word, idtag, cb);
-        } else {
-            cb();
-        }
-    };
-    async.eachLimit(text.split(/\W/), 50, eachWord, optionalCallback);
-}
-exports.addCitation = addCitation;
-exports.addCitations = addCitations;
-
-// Answer a validated list of the idtags that cite word (or an empty list if none),
-// where "validated" means that the idtag is still live (not garbage collected).
-// Updates citations file if needed.
-function citationsOf(word, callback) {
-    var file = citationsFile(word);
-    if (!file) { return callback(null, []); }
-    store.update(file, [], function (citations, writerFunction) {
-        // Filter the citations to include only idtags that still exist.
-        // It is possible that an old immutable used this word and has since been garbage collected,
-        // and yet the original author recreates the same object during async.filter and store.exists.
-        // The newly (re-)written immutable will not appear in the citation results, which is ok.
-        // More importantly, though, the new citation will cause the citationsFile to be rewritten,
-        // which can't occur until this store.update completes.
-        /* This version only checks the idFile, not what it points to:
-           var paths = citations.map(idFile); // as pathnames
-           async.filter(paths, store.exists, function (filteredPaths) {*/
-        // This version checks deeper
-        var check = function (id, cb) {
-            var path = idFile(id);
-            if (!isPlace(id)) {
-                store.exists(path, cb);
-            } else {
-                store.get(path, function (e, r) { // check place and current version
-                    if (e) { return cb(false); }
-                    store.exists(idFile(r.idvtag), cb);
-                });
-            }
-        };
-        async.filter(citations, check, function (filteredPaths) {
-            if (filteredPaths.length === citations.length) {
-                writerFunction(null, undefined, citations);  // No change, but give the list to callback.
-            } else {
-                var filteredCitations = filteredPaths.map(path.basename); // Re-save and callback the filtered list.
-                writerFunction(null, filteredCitations, filteredCitations);
-            }
-        });
-    }, callback);
-}
-exports.citationsOf = citationsOf;
-
-// Answers the sorted best matches (citing idtags) for text.
-// Current implementation breaks text into words and collects all idtags that have a word as nametag,
-// sorted by the number of times a word appears in object. e.g., search for 'tall block', and
-// everything containing 'tall' or 'block' will be returned, but something containing both 'tall' and 'block'
-// is ahead of something containing only one.
-function searchCitations(text, callback) {
-    var answers = {}; // map of citing idtag => score
-    var eachWord = function (word, cb) { // async.each cb just takes error arg, no result.
-        // Add the citations of a word to answers, incrementing answers[citation] for each insertion
-        citationsOf(word, function (err, citations) {
-            if (err) {
-                cb(err);
-            } else {
-                citations.forEach(function (citation) {
-                    answers[citation] = (answers[citation] || 0) + 1;
-                });
-                cb(null);
-            }
-        });
-    };
-    var whenDone = function (finalErr) {
-        // After processing eachWord above, sort the answers keys (the citating idtags) based on score, and answer the sorted idtags.
-        if (finalErr) { return callback(finalErr); }
-        var ids = Object.keys(answers);
-        ids = ids.sort(function (idA, idB) { return answers[idB] - answers[idA]; }); // biggest first
-        callback(null, ids);
-    };
-    async.eachLimit(text.split(/\W/), 50, eachWord, whenDone);
-}
-exports.searchCitations = searchCitations;
 
 // Answer an array of data objects suitable for setRelated in the browser.
-function search(text, callback) {
+function textSearch(text, callback) {
     // First get the sorted list of idtags that each mention words within the search text, best matches first.
-    searchCitations(text, function (err, idtags) {
+    search.findIdtags(text, function (err, idtags) {
         if (err) { return callback(err); }
         // For each citing object idtag, give two pieces of info to the cb:
         var eachCitation = function (idtag, cb) {
@@ -396,7 +305,7 @@ function search(text, callback) {
         async.mapLimit(idtags, 50, eachCitation, whenDone);
     });
 }
-exports.search = search;
+exports.search = textSearch;
 
 /********* MEDIA **************/
 function thumbFromPath(id, copies, path, callback) { // Copy contents of path into a thumbnail with the given ids, and callback.
@@ -553,3 +462,32 @@ function mark(idtag, callback, forceData) {
 exports.initialize = initialize;
 exports.mark = mark;
 exports.sweep = sweep;
+
+search.configure({
+    storage: function citationUpdate(word, updater, cb) {
+        var file = citationsFile(word);
+        if (!file) { return cb(null, []); }
+        store.update(file, [], updater, cb);
+    },
+    // It is possible that an old immutable used this word and has since been garbage collected,
+    // and yet the original author recreates the same object during async.filter and store.exists.
+    // The newly (re-)written immutable will not appear in the citation results, which is ok.
+    // More importantly, though, the new citation will cause the citationsFile to be rewritten,
+    // which can't occur until this store.update completes.
+    /* This version only checks the idFile, not what it points to:
+       var paths = citations.map(idFile); // as pathnames
+       async.filter(paths, store.exists, function (filteredPaths) {*/
+    // This version checks deeper
+    idtagExists: function (id, cb) {
+        var path = idFile(id);
+        if (!isPlace(id)) {
+            store.exists(path, cb);
+        } else {
+            store.get(path, function (e, r) { // check place and current version
+                if (e) { return cb(false); }
+                store.exists(idFile(r.idvtag), cb);
+            });
+        }
+    }
+});
+exports.searchCitations = search.findIdtags;

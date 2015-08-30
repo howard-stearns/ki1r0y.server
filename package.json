@@ -1,62 +1,63 @@
 {
-  "name": "ki1r0y.server",
-  "version": "1.0.3",
-  "private": true,
-  "description": "An experimental object server.",
-  "main": "app.js",
-  "scripts": {
-    "start": "node app",
-    "stop": "pkill ki1r0y",
-    "test": "mocha",
-    "all": "for sub in \"lock\"; do npm explore ki1r0y.$sub -- npm test; done; npm test"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/howard-stearns/ki1r0y.server.git"
-  },
-  "author": "Howard Stearns",
-  "license": "Artistic License 2.0",
-  "bugs": {
-    "url": "https://github.com/howard-stearns/ki1r0y.server/issues"
-  },
-  "homepage": "https://github.com/howard-stearns/ki1r0y.server",
-  "files": [
-    "pseudo-request.js",
-    "realtime-garbage-collector.js",
-    "app.js",
-    "routes/index.js",
-    "views/error.jade",
-    "views/layout.jade",
-    "views/index.jade",
-    "public/stylesheets/style.css",
-    "public/images/faviconon.ico",
-    "test/test.js",
-    "test/test.png",
-    "test/kilroy-21-reduced.png"
-  ],
-  "dependencies": {
-    "async": "^1.0.0",
-    "body-parser": "~1.12.0",
-    "debug": "~2.1.1",
-    "express": "~4.12.0",
-    "express-session": "^1.11.3",
-    "fs-extra": "^0.17.0",
-    "jade": "~1.9.2",
-    "ki1r0y.fs-store": "^1.0.2",
-    "morgan": "~1.5.1",
-    "multer": "~1.0.3",
-    "passport": "^0.2.2",
-    "passport-facebook": "^2.0.0",
-    "passport-http": "^0.2.2",
-    "request": "^2.59.0",
-    "serve-favicon": "~2.2.0",
-    "socket.io": "^1.3.5",
-    "underscore": "^1.8.2"
-  },
-  "devDependencies": {
-    "cheerio": "^0.18.0",
-    "mocha": "^2.2.1",
-    "request": "^2.53.0",
-    "underscore.string": "^3.0.3"
-  }
+    "name": "ki1r0y.server",
+    "version": "1.0.3",
+    "private": true,
+    "description": "An experimental object server.",
+    "main": "app.js",
+    "scripts": {
+        "start": "node app",
+        "stop": "pkill ki1r0y",
+        "test": "mocha",
+        "all": "for sub in \"lock\"; do npm explore ki1r0y.$sub -- npm test; done; npm test"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/howard-stearns/ki1r0y.server.git"
+    },
+    "author": "Howard Stearns",
+    "license": "Artistic License 2.0",
+    "bugs": {
+        "url": "https://github.com/howard-stearns/ki1r0y.server/issues"
+    },
+    "homepage": "https://github.com/howard-stearns/ki1r0y.server",
+    "files": [
+        "pseudo-request.js",
+        "realtime-garbage-collector.js",
+        "app.js",
+        "routes/index.js",
+        "views/error.jade",
+        "views/layout.jade",
+        "views/index.jade",
+        "public/stylesheets/style.css",
+        "public/images/faviconon.ico",
+        "test/test.js",
+        "test/test.png",
+        "test/kilroy-21-reduced.png"
+    ],
+    "dependencies": {
+        "async": "^1.0.0",
+        "body-parser": "~1.12.0",
+        "debug": "~2.1.1",
+        "express": "~4.12.0",
+        "express-session": "^1.11.3",
+        "fs-extra": "^0.17.0",
+        "jade": "~1.9.2",
+        "ki1r0y.fs-store": "^1.0.2",
+        "ki1r0y.simple-search": "^1.0.0",
+        "morgan": "~1.5.1",
+        "multer": "~1.0.3",
+        "passport": "^0.2.2",
+        "passport-facebook": "^2.0.0",
+        "passport-http": "^0.2.2",
+        "request": "^2.59.0",
+        "serve-favicon": "~2.2.0",
+        "socket.io": "^1.3.5",
+        "underscore": "^1.8.2"
+    },
+    "devDependencies": {
+        "cheerio": "^0.18.0",
+        "mocha": "^2.2.1",
+        "request": "^2.53.0",
+        "underscore.string": "^3.0.3"
+    }
 }
