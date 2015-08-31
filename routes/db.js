@@ -48,21 +48,6 @@ function refsFile(idtag) { // answer pathname for the list of scenes that refere
 function citationsFile(word) { // answer pathname for the list of idtags that cite the given word
     return dbFile(word, 'mutable/citation');
 }
-exports.idFile = idFile;
-exports.userFile = userFile;
-
-// Add idtag to the data in recordId IFF it is not already present, and creating record if needed.
-// Then call optionalCallback with any error.
-function pushIfNew(recordId, idtag, callback) {
-    if (!recordId) { return callback(null); }
-    store.update(recordId, [], function (data, writerFunction) {
-        if (data.indexOf(idtag) >= 0) {
-            return writerFunction(); // no need to update
-        }
-        data.push(idtag);
-        writerFunction(null, data);
-    }, callback);
-}
 
 /********* OBJECTS **************/
 // Answer an object with the fully resolved information about idtag (which must be for a place or thing).
@@ -230,8 +215,17 @@ function iterateUsers(iterator, finalCallback) {
 
 ////// REFS ////////
 function addReference(idtag, sceneIdtag, callback) { // add sceneIdtag to the list of scenes that use idtag
-    pushIfNew(refsFile(idtag), sceneIdtag, callback);
+    var recordId = refsFile(idtag);
+    if (!recordId) { return callback(null); }
+    store.update(recordId, [], function (data, writerFunction) {
+        if (data.indexOf(sceneIdtag) >= 0) {
+            return writerFunction(); // no need to update
+        }
+        data.push(sceneIdtag);
+        writerFunction(null, data);
+    }, callback);
 }
+
 // answer the list of scenes that use this object (which must be a place or thing idtag, not a place's idvtag)
 function referringScenes(objectIdtag, callback) {
     // Would it be worth it to rewrite the refs file if there are scenes that have no data (i.e., have been deleted)?
@@ -241,11 +235,13 @@ function referringScenes(objectIdtag, callback) {
         callback(err, refsSerialization);
     });
 }
+exports.addReference = addReference;
+exports.referringScenes = referringScenes;
+
+//////////////////////////
 exports.resolve = resolve;
 exports.resolveUser = resolveUser;
 exports.resolveScenes = resolveScenes;
-exports.addReference = addReference;
-exports.referringScenes = referringScenes;
 exports.update = update;
 exports.updateUser = updateUser;
 exports.iterateUsers = iterateUsers;

@@ -17,7 +17,7 @@ var _ = require('underscore');
 
 var chat = require('./routes/chat');
 var pseudo = require('./pseudo-request');
-var routes = require('./routes/nouns');
+var nouns = require('./routes/nouns');
 var site = require('./routes/site');
 
 // FIXME: what belongs in app.locals vs app.set/get
@@ -95,14 +95,14 @@ app.get('/channel.html', function (req, res) {
 });
 
 // Plural names are toplevel user requests.
-app.get('/people/:userIdtag', routes.user);
-app.get('/places/:sceneIdtag', routes.scene);
-app.get('/things/:objectIdtag', routes.scene);
+app.get('/people/:userIdtag', nouns.getUserPage);
+app.get('/places/:sceneIdtag', nouns.getItemPage);
+app.get('/things/:objectIdtag', nouns.getItemPage);
 
 // Handy for testing:
-app.get('/q/scenesContaining/:objectIdtag', routes.refs);
-app.get('/q/hasWord/:text', routes.citations);
-app.get('/q/search/:text', routes.search);
+app.get('/q/scenesContaining/:objectIdtag', nouns.getPlacesContaining);
+app.get('/q/hasWord/:text', nouns.getItemIdtagsWithText);
+app.get('/q/search/:text', nouns.getItemsWithText);
 
 // compatability with old ids. FIXME: authenticate (e.g., unity form.headers["Cookie"] = "connect.sid=....; facebook token...", but see http://docs.unity3d.com/ScriptReference/WWWForm-headers.html re pass by value)
 // Alas, Unity WWW class cannot do 'PUT'. FIXME: app.use(methodOverride()) and have client set header X-HTTP-Method-Override.
@@ -113,14 +113,14 @@ var fakeJson = [
         req.body.data = JSON.parse(req.body.data);
         next();
     }];
-app.post('/place/:id', fakeJson, routes.uploadPlace);
-app.post('/thing/:id', fakeJson, routes.uploadObject);
-app.post('/refs/:id', fakeJson, routes.uploadRefs); // Old name for pRefs.
+app.post('/place/:id', fakeJson, nouns.putPlace);
+app.post('/thing/:id', fakeJson, nouns.putThing);
+app.post('/refs/:id', fakeJson, nouns.postRefs); // Old name for pRefs.
 app.use(bodyParser.json()); // Our put/post data 
 var upload = multer({dest: path.resolve(__dirname, '../uploads/')});
 var singleFileUpload = upload.single('fileUpload'); // route converts 'fileUpload' form field to req.file (an object with 'path' property), and adds any text fields to req.body
-app.post('/thumb/:id', singleFileUpload, routes.uploadThumbnail);
-app.post('/media/:id', singleFileUpload, routes.uploadMedia);
+app.post('/thumb/:id', singleFileUpload, nouns.putThumbnail);
+app.post('/media/:id', singleFileUpload, nouns.putMedia);
 
 // These aren't needed for any of the above.
 // FIXME: The default server-side cookie implementation leaks memory.
@@ -216,17 +216,17 @@ app.get('/fbtest/:friend', function (req, res, next) {
 // FIXME: Authentication isn't enough. Need to figure out how to authorize by seeing that user if friend of author of the current space. (How to tell current space?)
 app.use('/media', /*FIXME authorize,*/ immutable('media'));
 //      '/fbusr (person) download isn't needed, and it would create issues for access control and when there are large numbers of user-created scenes.
-app.get('/xport/:objectIdtag', routes.exportMedia); // A dynamically generated .zip of the media associated with a (composite) thing.
+app.get('/xport/:objectIdtag', nouns.getExport); // A dynamically generated .zip of the media associated with a (composite) thing.
 
 // Corresponds to a get with the same url. (E.g., therefore 'put', not 'post')
-app.put('/place/:id.json', authorize, routes.uploadPlace); //FIXME: auth if data.author is req.user.idtag
-app.put('/thing/:id.json', authorize, routes.uploadObject); //FIXME: auth if data.author is req.user.idtag
-app.put('/thumb/:id.png', authorize, singleFileUpload, routes.uploadThumbnail); //FIXME: auth if thingIdtag.author is req.user.idtag. Is there a race condition?
-app.put('/media/:id', authorize, singleFileUpload, routes.uploadMedia); // Note that the file ending is part of the id. // FIXME: No user idtag. Need to be given first by thing? Race condition?
-app.delete('/:collection/:id.:ext', authorize, routes.delete); // For testing.  //FIXME: auth if xxxIdtag.author is req.userIdtag
+app.put('/place/:id.json', authorize, nouns.putPlace); //FIXME: auth if data.author is req.user.idtag
+app.put('/thing/:id.json', authorize, nouns.putThing); //FIXME: auth if data.author is req.user.idtag
+app.put('/thumb/:id.png', authorize, singleFileUpload, nouns.putThumbnail); //FIXME: auth if thingIdtag.author is req.user.idtag. Is there a race condition?
+app.put('/media/:id', authorize, singleFileUpload, nouns.putMedia); // Note that the file ending is part of the id. // FIXME: No user idtag. Need to be given first by thing? Race condition?
+app.delete('/:collection/:id.:ext', authorize, nouns.delete); // For testing.  //FIXME: auth if xxxIdtag.author is req.userIdtag
 // No corresponding get (hence post, not put)
-app.post('/pRefs/:id.json', authorize, routes.uploadRefs); // FIXME: what auth?
-app.post('/fbusr/:id.json', /*FIXME authorize, */routes.updateUser); //FIXME: auth if :id is req.user.idtag
+app.post('/pRefs/:id.json', authorize, nouns.postRefs); // FIXME: what auth?
+app.post('/fbusr/:id.json', /*FIXME authorize, */nouns.postPerson); //FIXME: auth if :id is req.user.idtag
 
 
 // If we get this far, nothing has picked up the request. Give a 404 error to the error handler.
