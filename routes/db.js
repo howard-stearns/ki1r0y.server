@@ -12,7 +12,7 @@ var _ = require('underscore');
 var fs = require('fs-extra'); // fixme remove? Also check other files and see if we can remove from package.json
 var store = require('ki1r0y.fs-store');
 var search = require('ki1r0y.simple-search');
-var pseudo = require('./pseudo-request');
+var pseudo = require('../pseudo-request');
 
 //function isPlace(idtag) { return idtag.length !== 40; } // predicate true if idtag is for a place (a mutable, versioned thing)
 function isPlace(idtag) { return (idtag.length === 37) || (idtag.length === 28) || (idtag.length === 41); } // FIXME: transition hack: 37=MS-GUID, 27=sha1/base64-=, 40=sha1/hex

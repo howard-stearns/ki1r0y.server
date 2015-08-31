@@ -3,8 +3,8 @@
 var next = setImmediate || process.nextTick;
 
 var async = require('async');
-var db = require('./db');
 var pseudo = require('./pseudo-request');
+var db = require('./routes/db');
 var querystring = require('querystring');
 
 /* 

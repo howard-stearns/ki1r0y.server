@@ -17,7 +17,7 @@ var _ = require('underscore');
 
 var chat = require('./routes/chat');
 var pseudo = require('./pseudo-request');
-var routes = require('./routes/index');
+var routes = require('./routes/nouns');
 var site = require('./routes/site');
 
 // FIXME: what belongs in app.locals vs app.set/get

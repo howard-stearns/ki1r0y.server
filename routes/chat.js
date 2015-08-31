@@ -2,8 +2,8 @@
 /*jslint node: true, vars: true, plusplus: true */
 
 var querystring = require('querystring');
-var db = require('../db');
 var pseudo = require('../pseudo-request');
+var db = require('./db');
 
 // Prevent embedded html in strings by replacing them with the corresponding html entities.
 function htmlEscape(str) {
