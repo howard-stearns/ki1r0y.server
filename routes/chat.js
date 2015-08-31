@@ -2,8 +2,6 @@
 /*jslint node: true, vars: true, plusplus: true */
 
 var querystring = require('querystring');
-var pseudo = require('../pseudo-request');
-var db = require('./db');
 
 // Prevent embedded html in strings by replacing them with the corresponding html entities.
 function htmlEscape(str) {
@@ -84,7 +82,7 @@ function addHistory(room, obj) {
 
 /********************************/
 // Set up handlers on a societ.io listener.
-exports.setup = function (io, logUser) {
+exports.setup = function (io, config) {
     io.sockets.on('connection', function (connection) {
         var userNametag = false;
         var userHeaders; // To identify this user for apache logging purposes.
@@ -98,7 +96,7 @@ exports.setup = function (io, logUser) {
                 req.statusCode = 500;
                 req.pathname += '&' + querystring.encode({error: error.name, desc: error.message});
             }
-            pseudo.info(req);
+            config.info(req);
         }
         // Each user connection (from io.connect in browser) has it's own session state and app-specific message handlers.
         log();
@@ -108,7 +106,7 @@ exports.setup = function (io, logUser) {
             connection.join(sceneIdtag);
             userNametag = htmlEscape(message.nametag);
             // FIXME: get a unique user idtag (or even authentication) rather than nametag (which typicallyt has spaces).
-            userHeaders = logUser(message.idtag);
+            userHeaders = config.logUser(message.idtag);
             userColor = getRandomColor(sceneIdtag);
             log('/join', {scene: sceneIdtag, plugin: message.plugin});
             // This user gets an avatar color...
@@ -139,7 +137,7 @@ exports.setup = function (io, logUser) {
             var msg = addHistory(sceneIdtag, new Message(htmlEscape(message), userNametag, userColor));
             io.sockets.in(sceneIdtag).emit('im', msg);
             // Also fire off a search with the results going only to the sender.
-            db.search(message, function (err, results) {
+            config.textSearch(message, function (err, results) {
                 if (err) {
                     log('/search', {scene: sceneIdtag, m: message}, err);
                     connection.emit('error', err.message);

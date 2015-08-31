@@ -35,6 +35,10 @@ function makeUploadResponder(req, res, next) { // Answer a node callback tied to
         }
     };
 }
+
+router.getMutable = function mutable(collection, app) { return express.static(path.join(app.get('dbdir'), 'mutable', collection)); };
+router.getImmutable = function immutable(collection, app) { return express.static(path.join(app.get('dbdir'), 'immutable', collection), {maxAge: app.locals.oneYearMs}); };
+
 /************************** PERSON ***************************/
 // POST
 // We keep data (e.g., scenes and thumbnail) that do not come from fb /me API response.
@@ -48,7 +52,7 @@ router.postPerson = function (req, res, next) {
 
 /************************** PLACE ***************************/
 // GET
-// FIXME mutable('place')
+//getPlace = mutable('place');
 
 // POST/PUT
 // Maybe the following should be combined into a postPlace, because the frequency and auth always match.
@@ -67,9 +71,10 @@ router.postRefs = function (req, res, next) {
 
 /************************** THING ***************************/
 // GET
-// FIXME immutable('thing')
-// FIXME immutable('thumb')
-router.getExport = function (req, res, next) {
+// getThing = immutable('thing')
+// getThumb = immutable('thumb')
+// getMedia = immutable('media')
+router.getXport = function (req, res, next) {
     // Download a zip containing all the media resources of the requested id.
     // We could reduce the server load by having the client produce a specific list
     // of resources -- it does have all the info. However, that would require a bunch
@@ -118,7 +123,7 @@ router.putMedia = function (req, res, next) { // Handler for saving media
                      data.path,
                      makeUploadResponder(req, res, next));
 };
-router.putThumbnail = function (req, res, next) { // Handler for saving thumbnails.
+router.putThumb = function (req, res, next) { // Handler for saving thumbnails.
     var data = req.file;
     data.extension = path.extname(data.originalname).slice(1);
     if (data.mimetype !== 'image/' + data.extension) { return next(new Error('File extension "' + data.extension + '" does not match mimetype "' + data.mimetype + '".')); }
@@ -155,6 +160,7 @@ router.getItemsWithText = function (req, res, next) {
         res.send(results);
     });
 };
+router.itemsWithText = db.search;
 
 // FIXME? Do these belong here?
 router.getItemPage = function (req, res, next) {

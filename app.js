@@ -54,8 +54,6 @@ function logUser(userIdentifier, optionalHeaders) { // BTW, isDev logging does n
     headers.authorization = "Basic " + new Buffer(userIdentifier + ':').toString('base64');
     return headers;
 }
-function mutable(collection) { return express.static(path.join(app.get('dbdir'), 'mutable', collection)); }
-function immutable(collection) { return express.static(path.join(app.get('dbdir'), 'immutable', collection), {maxAge: app.locals.oneYearMs}); }
 
 // Puns: We could make all get/post/delete be computed with its own function, specific to the particular route.  But if
 // we make the routes look like they correspond directly to static files on a file system, it gives us the opportunity
@@ -80,9 +78,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Uniform length names makes it easy to visually grok logs.
 // Singular names are internal resource transfers.
-app.use('/thing', immutable('thing'));
-app.use('/thumb', immutable('thumb'));
-app.use('/place', mutable('place'));
+app.use('/thing', nouns.getImmutable('thing', app));
+app.use('/thumb', nouns.getImmutable('thumb', app));
+app.use('/place', nouns.getMutable('place', app));
 
 // Peculiar toplevel 'files'.
 // See http://developers.facebook.com/docs/reference/javascript
@@ -119,7 +117,7 @@ app.post('/refs/:id', fakeJson, nouns.postRefs); // Old name for pRefs.
 app.use(bodyParser.json()); // Our put/post data 
 var upload = multer({dest: path.resolve(__dirname, '../uploads/')});
 var singleFileUpload = upload.single('fileUpload'); // route converts 'fileUpload' form field to req.file (an object with 'path' property), and adds any text fields to req.body
-app.post('/thumb/:id', singleFileUpload, nouns.putThumbnail);
+app.post('/thumb/:id', singleFileUpload, nouns.putThumb);
 app.post('/media/:id', singleFileUpload, nouns.putMedia);
 
 // These aren't needed for any of the above.
@@ -214,14 +212,14 @@ app.get('/fbtest/:friend', function (req, res, next) {
 }, echoUser);
 
 // FIXME: Authentication isn't enough. Need to figure out how to authorize by seeing that user if friend of author of the current space. (How to tell current space?)
-app.use('/media', /*FIXME authorize,*/ immutable('media'));
+app.use('/media', /*FIXME authorize,*/ nouns.getImmutable('media', app));
 //      '/fbusr (person) download isn't needed, and it would create issues for access control and when there are large numbers of user-created scenes.
-app.get('/xport/:objectIdtag', nouns.getExport); // A dynamically generated .zip of the media associated with a (composite) thing.
+app.get('/xport/:objectIdtag', nouns.getXport); // A dynamically generated .zip of the media associated with a (composite) thing.
 
 // Corresponds to a get with the same url. (E.g., therefore 'put', not 'post')
 app.put('/place/:id.json', authorize, nouns.putPlace); //FIXME: auth if data.author is req.user.idtag
 app.put('/thing/:id.json', authorize, nouns.putThing); //FIXME: auth if data.author is req.user.idtag
-app.put('/thumb/:id.png', authorize, singleFileUpload, nouns.putThumbnail); //FIXME: auth if thingIdtag.author is req.user.idtag. Is there a race condition?
+app.put('/thumb/:id.png', authorize, singleFileUpload, nouns.putThumb); //FIXME: auth if thingIdtag.author is req.user.idtag. Is there a race condition?
 app.put('/media/:id', authorize, singleFileUpload, nouns.putMedia); // Note that the file ending is part of the id. // FIXME: No user idtag. Need to be given first by thing? Race condition?
 app.delete('/:collection/:id.:ext', authorize, nouns.delete); // For testing.  //FIXME: auth if xxxIdtag.author is req.userIdtag
 // No corresponding get (hence post, not put)
@@ -252,6 +250,6 @@ app.use(function (err, req, res, next) {
 require('./realtime-garbage-collector').pingPong(app.get('dbdir'), 2000, function (e) {
     if (e) { throw e; }
     var server = require('http').createServer(app);
-    chat.setup(socketio(server), logUser);
+    chat.setup(socketio(server), {info: pseudo.info, logUser: logUser, textSearch: nouns.itemsWithText});
     server.listen(3000);
 });

@@ -9,7 +9,6 @@ var path = require('path');
 var util = require('util');
 var async = require('async');
 var _ = require('underscore');
-var fs = require('fs-extra'); // fixme remove? Also check other files and see if we can remove from package.json
 var store = require('ki1r0y.fs-store');
 var search = require('ki1r0y.simple-search');
 var pseudo = require('../pseudo-request');
@@ -369,6 +368,7 @@ exports.resolveMedia = resolveMedia;
 var markedDirs = ['mutable/place', 'immutable/thing', 'immutable/media']; // order matches gc querystring printing for easier reading
 function initialize(base, cb) { // Ensure that each newspace is an empty data store
     root = base; // used by collection name functions
+    exports.root = base;
     function cleanPair(oldspace, icb) {
         var oldpath = path.resolve(base, oldspace);
         var newpath = newspaceDir(oldpath);
