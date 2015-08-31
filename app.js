@@ -1,7 +1,10 @@
 "use strict";
 /*jslint node:true, nomen: true */
 
+/// MODULES:
+
 var path = require('path');
+var http = require('http');
 var express = require('express');
 var session = require('express-session');
 var favicon = require('serve-favicon');
@@ -15,45 +18,42 @@ var request = require('request');
 var socketio = require('socket.io');
 var _ = require('underscore');
 
-var chat = require('./routes/chat');
 var pseudo = require('./pseudo-request');
+var gc = require('./realtime-garbage-collector');
 var nouns = require('./routes/nouns');
+var chat = require('./routes/chat');
 var site = require('./routes/site');
-
-// FIXME: what belongs in app.locals vs app.set/get
-// FIXME: maybe just add properties to app?
-// FIXME: specifically, a function for collection resolution (relative to dbdir)
 
 function secret(key) {   // Grab a secret from the shell environment, or report that it wasn't set.
     if (process.env[key]) { return process.env[key]; }
     throw new Error("Please set environment variable: " + key);
 }
 
+/// APPLICATION SETUP:
+
 var app = express();
 var isDev = app.get('env') === 'development';
-// app.locals are directly available to templates.
-app.locals.pretty = isDev;
+// app.locals are directly available to templates:
+app.locals.pretty = isDev; // Tell template system whether to format HTML readably.
 app.locals.title = 'Ki1r0y';
 app.locals.fbAppId = '234339356748266';
-process.title = app.locals.title.toLowerCase(); // so we can kill the server with shell (pkill kilroy)
-// W3C recommends not aging more than a year. Express/connect expresses time in milliseconds (as for node generally).
-app.locals.oneYearSeconds = 60 * 60 * 24 * 365;
-app.locals.oneYearMs = app.locals.oneYearSeconds * 1000;
-
-// app.get/set operates on an extensible group of application settings.
-// For efficient uploads, we fs.rename files from uploadDir to db, but that won't work if they are on different file systems.
-app.set('dbdir', path.resolve(__dirname, '../db'));
+process.title = app.locals.title.toLowerCase();          // so we can kill the server with shell (pkill ki1r0y)
+app.locals.oneYearSeconds = 60 * 60 * 24 * 365;          // W3C recommends not aging more than a year. 
+app.locals.oneYearMs = app.locals.oneYearSeconds * 1000; // Express/connect time is in milliseconds (as for node generally).
+// app.set'tings are available to middleware:
+app.set('dbdir', path.resolve(__dirname, '../db'));      // Must be on same system for efficient file uploads and static gets.
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
-// Alas, morgan isn't smart enough to turn off colors when not a tty.
-var logger = morgan((isDev && process.stdin.isTTY) ? 'dev' : 'combined');
-pseudo.configure(logger);
 // Answer a set of headers (side-effecting optionalHeaders if supplied), such that the morgan logger will indicate userIdentifier as the requesting user.
-function logUser(userIdentifier, optionalHeaders) { // BTW, isDev logging does not show user. Production logging does.
+function logUser(userIdentifier, optionalHeaders) {      // BTW, isDev logging does not show user. Production logging does.
     var headers = optionalHeaders || {};
     headers.authorization = "Basic " + new Buffer(userIdentifier + ':').toString('base64');
     return headers;
 }
+var logger = morgan((isDev && process.stdin.isTTY) ? 'dev' : 'combined'); // Alas, morgan isn't smart enough to turn off colors when not a tty.
+pseudo.configure(logger);
+
+/// ROUTES:
 
 // Puns: We could make all get/post/delete be computed with its own function, specific to the particular route.  But if
 // we make the routes look like they correspond directly to static files on a file system, it gives us the opportunity
@@ -226,7 +226,7 @@ app.delete('/:collection/:id.:ext', authorize, nouns.delete); // For testing.  /
 app.post('/pRefs/:id.json', authorize, nouns.postRefs); // FIXME: what auth?
 app.post('/fbusr/:id.json', /*FIXME authorize, */nouns.postPerson); //FIXME: auth if :id is req.user.idtag
 
-
+// Error Handling:
 // If we get this far, nothing has picked up the request. Give a 404 error to the error handler.
 app.use(function (req, res, next) {
     var err = new Error('Not Found');
@@ -247,9 +247,11 @@ app.use(function (err, req, res, next) {
     });
 });
 
-require('./realtime-garbage-collector').pingPong(app.get('dbdir'), 2000, function (e) {
+/// INITIALIZATION:
+
+gc.pingPong(app.get('dbdir'), 2000, function (e) {
     if (e) { throw e; }
-    var server = require('http').createServer(app);
-    chat.setup(socketio(server), {info: pseudo.info, logUser: logUser, textSearch: nouns.itemsWithText});
+    var server = http.createServer(app);
+    chat.initialize(socketio(server), {info: pseudo.info, logUser: logUser, textSearch: nouns.itemsWithText});
     server.listen(3000);
 });

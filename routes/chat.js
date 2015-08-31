@@ -82,7 +82,7 @@ function addHistory(room, obj) {
 
 /********************************/
 // Set up handlers on a societ.io listener.
-exports.setup = function (io, config) {
+exports.initialize = function chatInitialize(io, config) {
     io.sockets.on('connection', function (connection) {
         var userNametag = false;
         var userHeaders; // To identify this user for apache logging purposes.
