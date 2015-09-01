@@ -1,5 +1,6 @@
 "use strict";
 /*jslint node: true, nomen: true*/
+/*ki1r0y app. This configures all the pieces. Sections are Modules, Application Setup, Routes, and Initialization.*/
 /*Copyright (c) 2013-2015 Howard Stearns. MIT License*/
 
 /// MODULES:
@@ -22,12 +23,31 @@ var _ = require('underscore');
 var pseudo = require('./pseudo-request');
 var gc = require('./realtime-garbage-collector');
 var nouns = require('./routes/nouns');
+var store = require('ki1r0y.fs-store');
+var search = require('ki1r0y.simple-search');
 var chat = require('./routes/chat');
 var site = require('./routes/site');
 
 function secret(key) {   // Grab a secret from the shell environment, or report that it wasn't set.
     if (process.env[key]) { return process.env[key]; }
     throw new Error("Please set environment variable: " + key);
+}
+// Answer a set of headers (side-effecting optionalHeaders if supplied), such that the morgan logger will indicate userIdentifier as the requesting user.
+function logUser(userIdentifier, optionalHeaders) { // BTW, isDev logging does not show user. Production logging does.
+    var headers = optionalHeaders || {};
+    headers.authorization = "Basic " + new Buffer(userIdentifier + ':').toString('base64');
+    return headers;
+}
+function dualCallback(res, next) {    // Create a nodejs callback(err, val) that also closes out an expressjs route handler.
+    return function (err, data) {
+        if (err) {
+            next(err);                // We could instead do: res.writeHead(500); res.end(error.message || error);
+        } else if (data) {
+            res.send(data);           // express will set content-type header to application/json.
+        } else {
+            res.send({status: "ok"}); // answer text that as parseable as JSON, to make things easier if we have other responses
+        }
+    };
 }
 
 /// APPLICATION SETUP:
@@ -45,14 +65,10 @@ app.locals.oneYearMs = app.locals.oneYearSeconds * 1000; // Express/connect time
 app.set('dbdir', path.resolve(__dirname, '../db'));      // Must be on same system for efficient file uploads and static gets.
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
-// Answer a set of headers (side-effecting optionalHeaders if supplied), such that the morgan logger will indicate userIdentifier as the requesting user.
-function logUser(userIdentifier, optionalHeaders) {      // BTW, isDev logging does not show user. Production logging does.
-    var headers = optionalHeaders || {};
-    headers.authorization = "Basic " + new Buffer(userIdentifier + ':').toString('base64');
-    return headers;
-}
 var logger = morgan((isDev && process.stdin.isTTY) ? 'dev' : 'combined'); // Alas, morgan isn't smart enough to turn off colors when not a tty.
+// Configure the implementations of how we persist/serve data:
 pseudo.configure(logger);
+nouns.configure({handleRoute: dualCallback});
 
 /// ROUTES:
 

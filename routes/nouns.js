@@ -23,19 +23,8 @@ module.exports = router;
    Some of the exported functions are are more direct, typically taking a node-conventional callback(error, optionalValue) as their final argument.
  */
 
-function makeUploadResponder(req, res, next) { // Answer a node callback tied to this request
-    _.noop(req);
-    return function (err, data) {
-        if (err) {
-            next(err);        // We could instead do: res.writeHead(500); res.end(error.message || error);
-        } else if (data) {
-            res.send(data);   // express will set content-type header to application/json.
-        } else {
-            res.send({status: "ok"}); // answer text that as parseable as JSON, to make things easier if we have other responses
-        }
-    };
-}
-
+var config;
+router.configure = function configureNouns(conf) { config = conf; };
 router.getMutable = function mutable(collection, app) { return express.static(path.join(app.get('dbdir'), 'mutable', collection)); };
 router.getImmutable = function immutable(collection, app) { return express.static(path.join(app.get('dbdir'), 'immutable', collection), {maxAge: app.locals.oneYearMs}); };
 
@@ -46,7 +35,7 @@ router.getImmutable = function immutable(collection, app) { return express.stati
 // to not lose anything when we re-write it. A (dubious) side-benefit is that we are somewhat
 // insulated from fb and test-harness changes. (See onMe in the public/javascripts or templates.)
 router.postPerson = function (req, res, next) {
-    db.updateUser(req.params.id, req.body, makeUploadResponder(req, res, next));
+    db.updateUser(req.params.id, req.body, config.handleRoute(res, next));
 };
 
 
@@ -57,7 +46,7 @@ router.postPerson = function (req, res, next) {
 // POST/PUT
 // Maybe the following should be combined into a postPlace, because the frequency and auth always match.
 router.putPlace = function (req, res, next) {
-    db.update(req.params.id, req.body.data, null, makeUploadResponder(req, res, next));
+    db.update(req.params.id, req.body.data, null, config.handleRoute(res, next));
 };
 // Saving refs: We keep a db of all the scenes that a given object has ever appeared in. 
 // The plugin uploads the objects that a scene uses, and here we invert that.
@@ -66,7 +55,7 @@ router.postRefs = function (req, res, next) {
     async.eachLimit(req.body.data, 50,
                     function (objectIdtag, callback) { db.addReference(objectIdtag, sceneIdtag, callback); },
                     // The refs upload occurs once per save, so it's a convenient place to hook a request to garbage collect the database.
-                    function (e) { gc.requestGC(); makeUploadResponder(req, res, next)(e); });
+                    function (e) { gc.requestGC(); config.handleRoute(res, next)(e); });
 };
 
 /************************** THING ***************************/
@@ -110,7 +99,7 @@ router.getXport = function (req, res, next) {
 // POST/PUT
 // These should probably be combined, because that's the only way to get the authorization right.
 router.putThing = function (req, res, next) { // flag is true for versions of a place
-    db.update(req.params.id, req.body.data, req.body.flag, makeUploadResponder(req, res, next));
+    db.update(req.params.id, req.body.data, req.body.flag, config.handleRoute(res, next));
 };
 // Conceptually like uploadObject, but different implementation because of their size.
 // The file extension is part of the id, because we want the urls for post/get/delete to be identical, and get is most flexible if it includes extension.
@@ -121,7 +110,7 @@ router.putMedia = function (req, res, next) { // Handler for saving media
     if (data.mimetype !== 'image/' + data.extension) { return next(new Error('File extension "' + data.extension + '" does not match mimetype "' + data.mimetype + '".')); }
     db.mediaFromPath(req.params.id,
                      data.path,
-                     makeUploadResponder(req, res, next));
+                     config.handleRoute(res, next));
 };
 router.putThumb = function (req, res, next) { // Handler for saving thumbnails.
     var data = req.file;
@@ -130,35 +119,26 @@ router.putThumb = function (req, res, next) { // Handler for saving thumbnails.
     db.thumbFromPath(req.params.id,
                      req.body.additionalIds ? JSON.parse(req.body.additionalIds) : [],
                      data.path,
-                     makeUploadResponder(req, res, next));
+                     config.handleRoute(res, next));
 };
 
 /************************** COMMON / OTHER ***************************/
 // DELETE
 router.delete = function (req, res, next) {
-    db.remove(req.params.id, req.params.collection, req.params.ext, makeUploadResponder(req, res, next));
+    db.remove(req.params.id, req.params.collection, req.params.ext, config.handleRoute(res, next));
 };
 
 // GET QUERIES
 // Answer an array of data objects suitable for setRelated in the browser (as json).
 // Handy for testing independent of the chat socket, or for exposing the api to others.
 router.getPlacesContaining = function (req, res, next) {
-    db.referringScenes(req.params.objectIdtag, function (err, scenes) {
-        if (err) { return next(err); }
-        res.send(scenes);
-    });
+    db.referringScenes(req.params.objectIdtag, config.handleRoute(res, next));
 };
 router.getItemIdtagsWithText = function (req, res, next) {
-    db.searchCitations(req.params.text, function (err, idtags) {
-        if (err) { return next(err); }
-        res.send(idtags);
-    });
+    db.searchCitations(req.params.text, config.handleRoute(res, next));
 };
 router.getItemsWithText = function (req, res, next) {
-    db.search(req.params.text, function (err, results) {
-        if (err) { return next(err); }
-        res.send(results);
-    });
+    db.search(req.params.text, config.handleRoute(res, next));
 };
 router.itemsWithText = db.search;
 
