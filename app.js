@@ -1,5 +1,6 @@
 "use strict";
-/*jslint node:true, nomen: true */
+/*jslint node: true, nomen: true*/
+/*Copyright (c) 2013-2015 Howard Stearns. MIT License*/
 
 /// MODULES:
 
