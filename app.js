@@ -22,6 +22,7 @@ var _ = require('underscore');
 
 var pseudo = require('./pseudo-request');
 var gc = require('./realtime-garbage-collector');
+var db = require('./routes/db'); // FIXME try to remove
 var nouns = require('./routes/nouns');
 var store = require('ki1r0y.fs-store');
 var search = require('ki1r0y.simple-search');
@@ -62,13 +63,44 @@ process.title = app.locals.title.toLowerCase();          // so we can kill the s
 app.locals.oneYearSeconds = 60 * 60 * 24 * 365;          // W3C recommends not aging more than a year. 
 app.locals.oneYearMs = app.locals.oneYearSeconds * 1000; // Express/connect time is in milliseconds (as for node generally).
 // app.set'tings are available to middleware:
-app.set('dbdir', path.resolve(__dirname, '../db'));      // Must be on same system for efficient file uploads and static gets.
+var dbdir = path.resolve(__dirname, '../db');
+app.set('dbdir', dbdir);      // Must be on same system for efficient file uploads and static gets.
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 var logger = morgan((isDev && process.stdin.isTTY) ? 'dev' : 'combined'); // Alas, morgan isn't smart enough to turn off colors when not a tty.
 // Configure the implementations of how we persist/serve data:
+var paths = {
+    //function isPlace(idtag) { return idtag.length !== 40; } // predicate true if idtag is for a place (a mutable, versioned thing)
+    isPlace: function isPlace(idtag) { return (idtag.length === 37) || (idtag.length === 28) || (idtag.length === 41); }, // FIXME: transition hack: 37=MS-GUID, 27=sha1/base64-=, 40=sha1/hex
+    dbdir: dbdir,
+    // These all answer falsey if no arg.
+    dbFile: function dbFile(key, base, ext) { return key ? path.resolve(dbdir, base, key) + (ext || '') : ''; }, // internal helper
+    newspaceDir: function newspaceDir(oldspace) { return oldspace + '2'; },
+    newspaceFile: function newspaceFile(filePath) { return paths.dbFile(path.basename(filePath), paths.newspaceDir(path.dirname(filePath))); },
+    // FIXME: Should just be .json, but handling old style idtags for transition
+    compatableExtension: function compatableExtension(idtag) { return ((40 <= idtag.length) && (idtag.length <= 41)) ? '.json' : ''; },
+    // answer pathname for place or thing
+    idFile: function idFile(idtag) { return paths.dbFile(idtag, paths.isPlace(idtag) ? 'mutable/place' : 'immutable/thing', paths.compatableExtension(idtag)); },
+    // answer pathname for our user data record
+    userFile: function userFile(idtag) { return paths.dbFile(idtag, 'mutable/people', paths.compatableExtension(idtag)); },
+    // thumbnail for idvtag
+    thumbFile: function thumbFile(idvtag) { var base = paths.dbFile(idvtag, 'immutable/thumb'); return base ? base + '.png' : ''; },
+    // filename must have extension
+    mediaFile: function mediaFile(filename) { return paths.dbFile(filename, 'immutable/media'); },
+    // answer pathname for the list of scenes that reference idtag
+    refsFile: function refsFile(idtag) { return paths.dbFile(idtag, 'mutable/refs'); },
+    // FIXME: needs subdirectories. // answer pathname for the list of idtags that cite the given word
+    citationsFile: function citationsFile(word) { return paths.dbFile(word, 'mutable/citation'); }
+};
+function mutable(collection) { return express.static(path.join(app.get('dbdir'), 'mutable', collection)); }
+function immutable(collection) { return express.static(path.join(app.get('dbdir'), 'immutable', collection), {maxAge: app.locals.oneYearMs}); }
+nouns.getThing = immutable('thing'); // When using the file system as we are, these can be more efficient than the defaults.
+nouns.getThumb = immutable('thumb');  // FIXME: define default defs in nouns  and make sure they work!
+nouns.getMedia = immutable('media');
+nouns.getPlace = mutable('place');
 pseudo.configure(logger);
-nouns.configure({handleRoute: dualCallback});
+db.configure(paths);
+nouns.configure({handleRoute: dualCallback, paths: paths});
 
 /// ROUTES:
 
@@ -95,9 +127,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Uniform length names makes it easy to visually grok logs.
 // Singular names are internal resource transfers.
-app.use('/thing', nouns.getImmutable('thing', app));
-app.use('/thumb', nouns.getImmutable('thumb', app));
-app.use('/place', nouns.getMutable('place', app));
+app.use('/thing', nouns.getThing);
+app.use('/thumb', nouns.getThumb);
+app.use('/place', nouns.getPlace);
 
 // Peculiar toplevel 'files'.
 // See http://developers.facebook.com/docs/reference/javascript
@@ -159,6 +191,17 @@ passport.use(new BasicStrategy(function (username, password, done) {
              {idtag: '100007663687854', username: username});
     });
 }));
+/*passport.use(new FacebookStrategy({
+    clientID: app.locals.fbAppId,
+    clientSecret: secret('FB_CLIENT_SECRET')
+}, function (accessToken, refreshToken, profile, done) {
+    setImmediate(function () {
+        profile.accessToken = accessToken;
+        profile.refreshToken = refreshToken;
+        done(null, profile);
+    });
+}));
+*/
 passport.use(new FacebookStrategy({
     clientID: app.locals.fbAppId,
     clientSecret: secret('FB_CLIENT_SECRET'),
@@ -229,7 +272,7 @@ app.get('/fbtest/:friend', function (req, res, next) {
 }, echoUser);
 
 // FIXME: Authentication isn't enough. Need to figure out how to authorize by seeing that user if friend of author of the current space. (How to tell current space?)
-app.use('/media', /*FIXME authorize,*/ nouns.getImmutable('media', app));
+app.use('/media', /*FIXME authorize,*/ nouns.getMedia);
 //      '/fbusr (person) download isn't needed, and it would create issues for access control and when there are large numbers of user-created scenes.
 app.get('/xport/:objectIdtag', nouns.getXport); // A dynamically generated .zip of the media associated with a (composite) thing.
 

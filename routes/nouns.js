@@ -25,8 +25,6 @@ module.exports = router;
 
 var config;
 router.configure = function configureNouns(conf) { config = conf; };
-router.getMutable = function mutable(collection, app) { return express.static(path.join(app.get('dbdir'), 'mutable', collection)); };
-router.getImmutable = function immutable(collection, app) { return express.static(path.join(app.get('dbdir'), 'immutable', collection), {maxAge: app.locals.oneYearMs}); };
 
 /************************** PERSON ***************************/
 // POST

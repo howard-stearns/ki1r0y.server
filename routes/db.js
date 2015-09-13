@@ -13,47 +13,15 @@ var store = require('ki1r0y.fs-store');
 var search = require('ki1r0y.simple-search');
 var pseudo = require('../pseudo-request');
 
-//function isPlace(idtag) { return idtag.length !== 40; } // predicate true if idtag is for a place (a mutable, versioned thing)
-function isPlace(idtag) { return (idtag.length === 37) || (idtag.length === 28) || (idtag.length === 41); } // FIXME: transition hack: 37=MS-GUID, 27=sha1/base64-=, 40=sha1/hex
-
-var root; // set by initialize();
-// These all answer falsey if no arg.
-function dbFile(key, base, ext) { return key ? path.resolve(root, base, key) + (ext || '') : ''; } // internal helper
-function newspaceDir(oldspace) { return oldspace + '2'; }
-function newspaceFile(filePath) {
-    return dbFile(path.basename(filePath), newspaceDir(path.dirname(filePath)));
-}
-function compatableExtension(idtag) { // FIXME: Should just be .json, but handling old style idtags for transition
-    return ((40 <= idtag.length) && (idtag.length <= 41)) ? '.json' : '';
-}
-exports.newspaceFile = newspaceFile; // fixme remove after testing
-function idFile(idtag) {  // answer pathname for place or thing
-    return dbFile(idtag, isPlace(idtag) ? 'mutable/place' : 'immutable/thing', compatableExtension(idtag));
-}
-function userFile(idtag) { // answer pathname for our user data record
-    return dbFile(idtag, 'mutable/people', compatableExtension(idtag));
-}
-function thumbFile(idvtag) { // thumbnail for idvtag
-    var base = dbFile(idvtag, 'immutable/thumb');
-    return base ? base + '.png' : '';
-}
-function mediaFile(filename) { // filename must have extension
-    return dbFile(filename, 'immutable/media');
-}
-function refsFile(idtag) { // answer pathname for the list of scenes that reference idtag
-    return dbFile(idtag, 'mutable/refs');
-}
-// FIXME: needs subdirectories.
-function citationsFile(word) { // answer pathname for the list of idtags that cite the given word
-    return dbFile(word, 'mutable/citation');
-}
+var paths;
+exports.configure = function configureDb(conf) { paths = conf; };
 
 /********* OBJECTS **************/
 // Answer an object with the fully resolved information about idtag (which must be for a place or thing).
 // The object is mostly suitable for a search resultRow(object) in the browser. isScene is used to
 // determine whether sceneIdtag/sceneNametag vs objectIdtag/objectNametag should be set (and the other left blank).
 function resolve(idtag, isScene, callback, originalIdtag, created) {
-    var dbPathname = idFile(idtag);
+    var dbPathname = paths.idFile(idtag);
     store.getWithModificationTime(dbPathname, function (err, obj, mtime) {
         if (err) { return callback(err); }
         if (obj.idvtag) {  // The request is for a generic place.
@@ -87,10 +55,10 @@ var markMaterials; //forward reference
 // added (because places don't include that data). Thus places + non-place things => do citations; any thing => do materials
 function update(idvtag, data, flag, callback) {
     if (!data) { return callback(new Error("Update of " + idvtag + " with no data, flag=" + flag)); }
-    var path = idFile(idvtag);
+    var path = paths.idFile(idvtag);
     store.set(path, data, function (eWrite) { // locked against gc sweep of path
         if (eWrite) { return callback(eWrite); }
-        store.ensure(newspaceFile(path), function (eTouch) {
+        store.ensure(paths.newspaceFile(path), function (eTouch) {
             if (eTouch) { return callback(eTouch); }
             // Materials were already uploaded, possibly in an earlier generation of the gc, so must be re-marked.
             markMaterials(data.materials || [], function (eMat) {
@@ -116,20 +84,20 @@ function remove(idtag, collection, ext, cb) { // delete the specified object fro
     var pathname;
     switch (collection) {
     case 'media':
-        pathname = mediaFile(idtag + '.' + ext);
+        pathname = paths.mediaFile(idtag + '.' + ext);
         break;
     case 'fbusr':
-        pathname = userFile(idtag);
+        pathname = paths.userFile(idtag);
         break;
     case 'place':
     case 'thing':
-        pathname = idFile(idtag);
+        pathname = paths.idFile(idtag);
         break;
     case 'refs':
-        pathname = refsFile(idtag);
+        pathname = paths.refsFile(idtag);
         break;
     case 'thumb':
-        pathname = thumbFile(idtag);
+        pathname = paths.thumbFile(idtag);
         break;
     default:
         return cb(new Error("Unknown collection " + collection));
@@ -141,7 +109,7 @@ exports.remove = remove;
 // Like resolve, but for an array of idtags, which must all be scenes.
 function resolveScenes(sceneIdtags, callback) {
     var eachScene = function (idtag, cb) {
-        store.get(idFile(idtag), function (err, obj) {
+        store.get(paths.idFile(idtag), function (err, obj) {
             // No sense killing everything on err. Just give blank data. E.g., delete a scene that appears in obj's refs.
             if (err) { obj = {versions: {}}; }
             var timestamps = Object.keys(obj.versions);
@@ -165,7 +133,7 @@ function resolveScenes(sceneIdtags, callback) {
 // Like resolve, but for user data, which isn't the same set of properties.
 // Trevor is "100004567501627". Howard is "100000015148499".
 function resolveUser(idtag, callback) {
-    store.get(userFile(idtag), function (err, obj) {
+    store.get(paths.userFile(idtag), function (err, obj) {
         if (err) { return callback(err); }
         obj.nametags = [obj.nametag, obj.firstname, obj.lastname];
         obj.userIdtag = idtag;
@@ -173,7 +141,7 @@ function resolveUser(idtag, callback) {
     });
 }
 function updateUser(userIdtag, userData, callback) {
-    var path = userFile(userIdtag);
+    var path = paths.userFile(userIdtag);
     store.update(path, undefined, function (data, writerFunction) {
         if (!data) {
             pseudo.info('/pseudoOp/newUser?name=' + encodeURIComponent(userData.username || 'null') + '&id=' + userIdtag);
@@ -206,7 +174,7 @@ function updateUser(userIdtag, userData, callback) {
 // Calls iterator(userObject, cb, userIdtag) on each user's data. iterator must call cb(err) to continue.
 // finalCallbac(err) is called on error or when all cb have been used.
 function iterateUsers(iterator, finalCallback) {
-    var dir = path.resolve(root, 'mutable/people');
+    var dir = path.resolve(paths.dbdir, 'mutable/people');
     store.iterateDocuments(dir, function (user, userIdtag, icb) {
         iterator(user, icb, userIdtag);
     }, finalCallback);
@@ -214,7 +182,7 @@ function iterateUsers(iterator, finalCallback) {
 
 ////// REFS ////////
 function addReference(idtag, sceneIdtag, callback) { // add sceneIdtag to the list of scenes that use idtag
-    var recordId = refsFile(idtag);
+    var recordId = paths.refsFile(idtag);
     if (!recordId) { return callback(null); }
     store.update(recordId, [], function (data, writerFunction) {
         if (data.indexOf(sceneIdtag) >= 0) {
@@ -228,7 +196,7 @@ function addReference(idtag, sceneIdtag, callback) { // add sceneIdtag to the li
 // answer the list of scenes that use this object (which must be a place or thing idtag, not a place's idvtag)
 function referringScenes(objectIdtag, callback) {
     // Would it be worth it to rewrite the refs file if there are scenes that have no data (i.e., have been deleted)?
-    store.get(refsFile(objectIdtag), function (err, refsSerialization) {
+    store.get(paths.refsFile(objectIdtag), function (err, refsSerialization) {
         // Not sure this is the right thing in general, but scenes should refer to themselves.
         if (store.doesNotExist(err)) { return callback(null, [objectIdtag]); }
         callback(err, refsSerialization);
@@ -305,13 +273,13 @@ exports.search = textSearch;
 /********* MEDIA **************/
 function thumbFromPath(id, copies, path, callback) { // Copy contents of path into a thumbnail with the given ids, and callback.
     // FIXME: The multer package now supports a file object buffer property, as well as the path property we use. Passing this would avoid the readFile.
-    var thumb = thumbFile(id);
+    var thumb = paths.thumbFile(id);
     store.rename(path, thumb, function (err) { // No need for newspace copy. See rmStore.
         if (err || !copies.length) { return callback(err); }
         store.getBuffer(thumb, function (err, data) { // read once, write many
             if (err) { return callback(err); }
             async.eachSeries(copies, function (id, cb) {
-                store.setBuffer(thumbFile(id), data, cb);
+                store.setBuffer(paths.thumbFile(id), data, cb);
             }, callback);
         });
     });
@@ -319,8 +287,8 @@ function thumbFromPath(id, copies, path, callback) { // Copy contents of path in
 // Media are immutable and so write order doesn't matter, but they are big.
 function mediaFromPath(id, sourcePath, callback) { // Copy contents of path into newspace. id must have extension.
     // Mark now, in case the object that uses it isn't uploaded until a later generation of the gc.
-    var oldpath = mediaFile(id);
-    store.ensure(newspaceFile(oldpath), function () {
+    var oldpath = paths.mediaFile(id);
+    store.ensure(paths.newspaceFile(oldpath), function () {
         store.rename(sourcePath, oldpath, callback);
     });
 }
@@ -328,7 +296,7 @@ function mtlName(spec) { return spec.map || spec; } // spec can be simple materi
 function markMaterials(materialsList, callback) { // Mark the list and callback(err, nNotAlreadyMarked)
     var count = 0; // A lot of trouble just to get an approximate count (due to interleaved writes), but it's worth it for debugging the gc
     async.eachSeries(materialsList, function (spec, cb) { // serially to avoid blowing the process stack during gc
-        var newpath = newspaceFile(mediaFile(mtlName(spec)));
+        var newpath = paths.newspaceFile(paths.mediaFile(mtlName(spec)));
         store.exists(newpath, function (exists) {
             if (exists) { return cb(null); }
             count++;
@@ -345,7 +313,7 @@ function markMaterials(materialsList, callback) { // Mark the list and callback(
 function resolveMedia(idtag, cb, media) {
     resolve(idtag, false, function (err, data) {
         if (err) { return cb(err, media); }
-        if (!media) { media = {directory: path.resolve(root, 'immutable/media'), resources: {}}; }
+        if (!media) { media = {directory: path.resolve(paths.dbdir, 'immutable/media'), resources: {}}; }
         if (!media.nametag) { media.nametag = data.nametag; }
         // FIXME: if mesh, concatenate material defs into a .mtl file.
         (data.materials || []).forEach(function (spec) { media.resources[mtlName(spec)] = data.nametag; });
@@ -367,11 +335,9 @@ exports.resolveMedia = resolveMedia;
 
 var markedDirs = ['mutable/place', 'immutable/thing', 'immutable/media']; // order matches gc querystring printing for easier reading
 function initialize(base, cb) { // Ensure that each newspace is an empty data store
-    root = base; // used by collection name functions
-    exports.root = base;
     function cleanPair(oldspace, icb) {
         var oldpath = path.resolve(base, oldspace);
-        var newpath = newspaceDir(oldpath);
+        var newpath = paths.newspaceDir(oldpath);
         pseudo.info('/pseudoOp/db.initialize?oldspace=' + oldspace);
         store.ensureCollection(oldpath, function (e) {
             if (e) { return icb(e); }
@@ -399,11 +365,11 @@ function sweep(stats, callback) { // swap each oldspace path in paths, with the 
     // are not in newspace by any means (regardless of who/when it was marked in newspace).
     var swap1 = function (oldpath, newpath, doCheck, cb) {
         var label = path.basename(oldpath), labelExist = label + 'Kept', labelDeleted = label + 'Deleted';   // just for debugging
-        oldpath = path.resolve(root, oldpath);
-        newpath = path.resolve(root, newpath);
+        oldpath = path.resolve(paths.dbdir, oldpath);
+        newpath = path.resolve(paths.dbdir, newpath);
         stats[labelExist] = stats[labelDeleted] = 0; // ditto
         store.iterateIdentifiers(oldpath, function (oldf, f, icb) {
-            var newf = dbFile(f, newpath);
+            var newf = paths.dbFile(f, newpath);
             store.destroy(newf, function (e1) {
                 if (!e1) {
                     stats[labelExist]++;
@@ -413,8 +379,8 @@ function sweep(stats, callback) { // swap each oldspace path in paths, with the 
                     stats[labelDeleted]++;
                     store.destroy(oldf, function (e2) {
                         if (doCheck) {
-                            store.destroy(thumbFile(f), function (e3) {
-                                store.destroy(refsFile(f), function (e4) {
+                            store.destroy(paths.thumbFile(f), function (e3) {
+                                store.destroy(paths.refsFile(f), function (e4) {
                                     icb(e1 || e2 || (!store.doesNotExist(e3) && e3) || (!store.doesNotExist(e4) && e4));
                                 });
                             });
@@ -427,14 +393,14 @@ function sweep(stats, callback) { // swap each oldspace path in paths, with the 
         }, cb);
     };
     async.eachSeries(markedDirs, function (dirpath, pathCb) {
-        swap1(dirpath, newspaceDir(dirpath), dirpath === 'immutable/thing', pathCb);
+        swap1(dirpath, paths.newspaceDir(dirpath), dirpath === 'immutable/thing', pathCb);
     }, callback);
 }
 // mark (or copy) thing and callback(err, dataObject).
 // dataObject will be null IFF idtag was already marked in this generation and forceData was falsey.
 function mark(idtag, callback, forceData) {
-    var oldPath = idFile(idtag);
-    var newPath = newspaceFile(oldPath);
+    var oldPath = paths.idFile(idtag);
+    var newPath = paths.newspaceFile(oldPath);
     // Only do the work if it is not already marked. 
     // (We could skip the test for scenes (which are only ever referenced once from owner),
     //  but I assume it's not worth the complexity.)
@@ -461,7 +427,7 @@ exports.sweep = sweep;
 
 search.configure({
     storage: function citationUpdate(word, updater, cb) {
-        var file = citationsFile(word);
+        var file = paths.citationsFile(word);
         if (!file) { return cb(null, []); }
         store.update(file, [], updater, cb);
     },
@@ -475,13 +441,13 @@ search.configure({
        async.filter(paths, store.exists, function (filteredPaths) {*/
     // This version checks deeper
     idtagExists: function (id, cb) {
-        var path = idFile(id);
-        if (!isPlace(id)) {
+        var path = paths.idFile(id);
+        if (!paths.isPlace(id)) {
             store.exists(path, cb);
         } else {
             store.get(path, function (e, r) { // check place and current version
                 if (e) { return cb(false); }
-                store.exists(idFile(r.idvtag), cb);
+                store.exists(paths.idFile(r.idvtag), cb);
             });
         }
     }
