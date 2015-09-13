@@ -8,7 +8,7 @@
         "start": "node app",
         "stop": "pkill ki1r0y",
         "test": "mocha",
-        "all": "for sub in \"lock\"; do npm explore ki1r0y.$sub -- npm test; done; npm test"
+        "all": "for sub in lock fs-store simple-search; do npm explore ki1r0y.$sub -- npm test; done; npm test"
     },
     "repository": {
         "type": "git",
@@ -57,7 +57,6 @@
     "devDependencies": {
         "cheerio": "^0.18.0",
         "mocha": "^2.2.1",
-        "request": "^2.53.0",
         "underscore.string": "^3.0.3"
     }
 }
